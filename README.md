@@ -62,7 +62,7 @@ Requires FreeCAD 1.0 or newer.
 ## Status & quality
 
 Active development. The geometry work is validated by a suite of
-**169 headless regression tests** that run against FreeCAD's own core
+**170 headless regression tests** that run against FreeCAD's own core
 on every change — each operator's mathematics (continuity conditions,
 extrapolation, conic exactness, propagation semantics) is verified
 numerically, not just visually.

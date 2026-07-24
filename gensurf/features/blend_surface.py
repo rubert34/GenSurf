@@ -40,6 +40,7 @@ class BlendSurface(GSFeature):
         "Continuity1": _CONTINUITY,
         "Continuity2": _CONTINUITY,
         "Coupling": ("ArcLength", "Parameter"),
+        "Borders": ("Align to supports", "Natural"),
     }
     PROPERTIES = (
         ("App::PropertyLinkSub", "Curve1", "Blend",
@@ -68,6 +69,9 @@ class BlendSurface(GSFeature):
          "Automatically align the direction of the second curve", True),
         ("App::PropertyInteger", "Samples", "Blend",
          "Number of blend sections (quality vs speed)", 24),
+        ("App::PropertyEnumeration", "Borders", "Blend",
+         "Side edges: continue the supports' own border edges, or "
+         "leave naturally along the coupling direction", None),
     )
 
     # -- geometry helpers --------------------------------------------------
@@ -98,10 +102,47 @@ class BlendSurface(GSFeature):
         u, v = surface.parameter(near)
         return surface.value(u, v)
 
+    @staticmethod
+    def _border_continuation(support, corner, curve_tangent):
+        """Direction continuing the support's side border past a corner
+        of the blend curve, or None if no border edge meets it."""
+        ct = App.Vector(curve_tangent)
+        ct.normalize()
+        for e in support.Edges:
+            for vtx, at_start in ((e.Vertexes[0], True),
+                                  (e.Vertexes[-1], False)):
+                if (vtx.Point - corner).Length > 1e-6:
+                    continue
+                param = e.FirstParameter if at_start else e.LastParameter
+                t = App.Vector(e.tangentAt(param))
+                t.normalize()
+                if not at_start:
+                    t = t.negative()  # point from the corner into the edge
+                if abs(t.dot(ct)) > 0.9:
+                    continue  # that's the blend curve itself
+                return t.negative()  # continuation OUT of the support
+        return None
+
     def _end_condition(self, point, edge_tangent, support, continuity,
-                       tension, length, toward, reverse=False):
+                       tension, length, toward, reverse=False,
+                       border=None):
         """First and second derivative of the blend curve at one end,
-        for a [0,1] parametrization of span ~length."""
+        for a [0,1] parametrization of span ~length. ``border`` is an
+        optional (direction, weight) steering the departure toward the
+        support's border continuation (side-edge alignment)."""
+
+        def steer(direction, normal=None):
+            if border is None:
+                return direction
+            bdir, w = border
+            mixed = direction * (1.0 - w) + bdir * w
+            if normal is not None:  # stay in the support tangent plane
+                mixed = mixed - normal * mixed.dot(normal)
+            if mixed.Length < 1e-9:
+                return direction
+            mixed.normalize()
+            return mixed
+
         m = max(tension, 0.05) * length
         zero = App.Vector(0, 0, 0)
         if continuity == "Position" or support is None:
@@ -109,7 +150,7 @@ class BlendSurface(GSFeature):
             if d.Length < 1e-12:
                 return zero, zero
             d.normalize()
-            return d * m, zero
+            return steer(d) * m, zero
 
         u, v = support.Surface.parameter(point)
         normal = support.normalAt(u, v)
@@ -125,6 +166,7 @@ class BlendSurface(GSFeature):
         # the support surface lies opposite `cross` — always sample there
         inward = cross.negative()
         tangent = cross.negative() if reverse else cross
+        tangent = steer(tangent, normal)
 
         first = tangent * m
         second = zero
@@ -173,15 +215,41 @@ class BlendSurface(GSFeature):
         tan1 = self._polyline_tangents(pts1)
         tan2 = self._polyline_tangents(pts2)
 
+        # side-edge alignment: continuation of each support's border
+        # edge at the four corners, faded over the outer sections
+        align = getattr(obj, "Borders", "Align to supports") == \
+            "Align to supports"
+        corners = {}
+        if align:
+            for side, sup, pts, tan in ((1, sup1, pts1, tan1),
+                                        (2, sup2, pts2, tan2)):
+                if sup is None:
+                    continue
+                for endkey, idx in (("start", 0), ("end", n - 1)):
+                    d = self._border_continuation(sup, pts[idx], tan[idx])
+                    if d is not None:
+                        corners[(side, endkey)] = d
+        zone = max(2, n // 5)
+
+        def border_for(side, i):
+            import math as _math
+            if (side, "start") in corners and i < zone:
+                w = 0.5 * (1 + _math.cos(_math.pi * i / zone))
+                return (corners[(side, "start")], w)
+            if (side, "end") in corners and i > n - 1 - zone:
+                w = 0.5 * (1 + _math.cos(_math.pi * (n - 1 - i) / zone))
+                return (corners[(side, "end")], w)
+            return None
+
         sections = []
-        for p0, p1, t0, t1 in zip(pts1, pts2, tan1, tan2):
+        for i, (p0, p1, t0, t1) in enumerate(zip(pts1, pts2, tan1, tan2)):
             length = max((p1 - p0).Length, 1e-6)
             v0, a0 = self._end_condition(
                 p0, t0, sup1, obj.Continuity1, obj.Tension1,
-                length, p1 - p0, obj.ReverseTangent1)
+                length, p1 - p0, obj.ReverseTangent1, border_for(1, i))
             v1_in, a1 = self._end_condition(
                 p1, t1, sup2, obj.Continuity2, obj.Tension2,
-                length, p0 - p1, obj.ReverseTangent2)
+                length, p0 - p1, obj.ReverseTangent2, border_for(2, i))
             v1 = v1_in.negative()  # P'(1) points out of the blend, into side 2
 
             # quintic Hermite -> Bezier poles

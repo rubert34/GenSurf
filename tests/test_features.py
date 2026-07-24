@@ -3375,3 +3375,66 @@ def test_close_surface_open_nonplanar_errors(doc):
     cs.Elements = [(cyl, "")]
     with pytest.raises(GSFeatureError):
         cs.Proxy.execute(cs)
+
+
+# -- Blend border alignment -----------------------------------------------
+
+
+def _slanted_support(doc, y0, y_back, name):
+    """Planar face with its long edge at y=y0 (x 0..10) and side
+    borders slanted outward toward y_back."""
+    sgn = 1.0 if y_back > y0 else -1.0  # noqa: F841 (clarity)
+    pts = [App.Vector(0, y0, 0), App.Vector(10, y0, 0),
+           App.Vector(15, y_back, 0), App.Vector(-5, y_back, 0)]
+    wire = Part.Wire([Part.makeLine(pts[i], pts[(i + 1) % 4])
+                      for i in range(4)])
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = Part.Face(wire)
+    return obj
+
+
+def _blend_edge_at(shape, corner):
+    """The lateral (section) edge of the blend touching the corner and
+    running across the gap (not along the blend curves)."""
+    for e in shape.Faces[0].Edges:
+        touches = any((v.Point - corner).Length < 1e-6
+                      for v in e.Vertexes)
+        spans = abs(e.Vertexes[0].Point.y - e.Vertexes[-1].Point.y) > 5
+        if touches and spans:
+            return e
+    raise AssertionError("lateral edge not found")
+
+
+def test_blend_borders_align_vs_natural(doc):
+    from gensurf.features import make_blend_surface
+    s1 = _slanted_support(doc, 0, -10, "BAs1")    # blend edge at y=0
+    s2 = _slanted_support(doc, 20, 30, "BAs2")    # blend edge at y=20
+
+    def edge_name(obj, y):
+        for i, e in enumerate(obj.Shape.Edges):
+            if all(abs(v.Point.y - y) < 1e-9 for v in e.Vertexes):
+                return f"Edge{i + 1}"
+        raise AssertionError("blend curve edge not found")
+
+    bl = make_blend_surface(doc)
+    bl.Curve1 = (s1, [edge_name(s1, 0)])
+    bl.Support1 = (s1, ["Face1"])
+    bl.Curve2 = (s2, [edge_name(s2, 20)])
+    bl.Support2 = (s2, ["Face1"])
+    bl.Continuity1 = "Tangency"
+    bl.Continuity2 = "Tangency"
+    assert_recomputes(doc)  # default: Align to supports
+
+    lateral = _blend_edge_at(bl.Shape, App.Vector(0, 0, 0))
+    mid = lateral.valueAt(
+        (lateral.FirstParameter + lateral.LastParameter) / 2)
+    # the border at (0,0) slants dx/dy = 0.5: continued past the corner
+    # it drifts inward (+x), so the aligned lateral edge bulges there
+    assert mid.x > 0.4
+
+    bl.Borders = "Natural"
+    assert_recomputes(doc)
+    lateral = _blend_edge_at(bl.Shape, App.Vector(0, 0, 0))
+    mid = lateral.valueAt(
+        (lateral.FirstParameter + lateral.LastParameter) / 2)
+    assert abs(mid.x) < 1e-6  # natural: straight across the gap
