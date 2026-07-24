@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>GenSurf</name>
-  <description>A CATIA Generative Shape Design (GSD) style surfacing workbench: geometrical sets, wireframe construction geometry, and parametric styling surfaces.</description>
+  <description>A generative surfacing workbench: geometrical sets, wireframe construction geometry, and parametric styling surfaces.</description>
   <version>0.24.0</version>
   <date>2026-07-23</date>
   <maintainer email="rubert34@users.noreply.github.com">rubert34</maintainer>

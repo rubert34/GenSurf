@@ -5,10 +5,10 @@ import FreeCADGui
 
 
 class GenerativeSurfacesWorkbench(FreeCADGui.Workbench):
-    """CATIA GSD-style surfacing workbench."""
+    """Generative surfacing workbench."""
 
     MenuText = "GenSurf"
-    ToolTip = "GSD-style wireframe and surface modeling"
+    ToolTip = "Generative wireframe and surface modeling"
 
     def __init__(self):
         import os

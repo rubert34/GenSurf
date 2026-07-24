@@ -1,19 +1,19 @@
 # GenSurf — Generative Surfaces for FreeCAD
 
-A CATIA **Generative Shape Design (GSD)** style surfacing workbench,
-built natively on FreeCAD's parametric core.
+A generative surfacing workbench, built natively on FreeCAD's
+parametric core.
 
-GenSurf brings the working method of high-end industrial surfacing
-packages (CATIA GSD, and the equivalent surfacing environments of
-Solidworks, NX, Creo) to FreeCAD: construction wireframe first, styling
-surfaces on top, everything parametric, everything organized in
-**Geometrical Sets** that separate construction geometry from the
-surfaces that matter.
+GenSurf brings to FreeCAD the surfacing method used by the advanced
+parametric CAD packages of the automotive and aerospace world
+(Solidworks, NX, CATIA, Creo and the like): construction wireframe
+first, styling surfaces on top, everything parametric, everything
+organized in **Geometrical Sets** that separate construction geometry
+from the surfaces that matter.
 
 ## What's inside
 
-**40 parametric operators** across four toolbars, with CATIA-style
-fly-out button groups:
+**40 parametric operators** across four toolbars, with fly-out button
+groups:
 
 - **Structure** — Geometrical Set insertion with an active-set
   workflow: new wireframe, sketches and surfaces land in the active
@@ -25,7 +25,7 @@ fly-out button groups:
   revolutions / height, taper, orientation), Spine, Parallel Curve
   (Euclidean and geodesic), 3D Curve Offset.
 - **Surfaces** — Extrude, Revolve, Sphere, Offset, **Swept Surface in
-  all four CATIA profile types** (Explicit with reference surface /
+  all four classic profile types** (Explicit with reference surface /
   two guides / pulling direction; Line with two limits, limit-middle,
   reference surface, draft direction; Circle with three guides, two
   guides + radius, center-based; Conic with true rational-conic
@@ -35,14 +35,15 @@ fly-out button groups:
 - **Operations** — Join (with connectivity / manifold / tangency
   checks), Split, Trim, Boundary (propagation + limits), Extract,
   Multiple Extract, Shape Fillet, Edge Fillet, Chamfer, Translate,
-  Rotate, Scale (point / plane / line reference), Symmetry, Extend,
+  Rotate, Scale (point / plane / line reference), Symmetry, Extend
   (mathematically natural extrapolation of curves and surfaces —
   Natural / Tangent / Curvature modes), Close Surface (closed
   surfaces into a solid, with planar-hole capping).
 
-Every operator has a CATIA-style task dialog (pick-driven inputs,
-OK / Apply / Cancel), idles quietly until its inputs are complete, and
-recomputes parametrically when upstream geometry changes.
+Every operator has a pick-driven task dialog (select inputs in the 3D
+view, set parameters, OK / Apply / Cancel), idles quietly until its
+inputs are complete, and recomputes parametrically when upstream
+geometry changes.
 
 ## Installation
 
@@ -66,7 +67,7 @@ on every change — each operator's mathematics (continuity conditions,
 extrapolation, conic exactness, propagation semantics) is verified
 numerically, not just visually.
 
-Some CATIA options are intentionally not implemented yet; each
+Some advanced options are intentionally not implemented yet; each
 operator's source docstring states precisely what is covered and what
 is skipped, so nothing is silently approximated.
 
@@ -104,9 +105,9 @@ FREECAD_LIB=/path/to/freecad/lib python3 -m pytest tests/ -v
 ## Development
 
 GenSurf is developed by rubert34, with implementation by Claude
-(Anthropic). The workflow: each operator is specified against real
-CATIA GSD behavior, implemented as a self-contained parametric
-feature, covered by numeric regression tests, and validated in an
-interactive FreeCAD session before release.
+(Anthropic). The workflow: each operator is specified against the
+behavior of professional surfacing packages, implemented as a
+self-contained parametric feature, covered by numeric regression
+tests, and validated in an interactive FreeCAD session before release.
 
 License: LGPL-2.1-or-later (see LICENSE).
