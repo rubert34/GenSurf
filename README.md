@@ -12,7 +12,7 @@ surfaces that matter.
 
 ## What's inside
 
-**39 parametric operators** across four toolbars, with CATIA-style
+**40 parametric operators** across four toolbars, with CATIA-style
 fly-out button groups:
 
 - **Structure** — Geometrical Set insertion with an active-set
@@ -35,9 +35,10 @@ fly-out button groups:
 - **Operations** — Join (with connectivity / manifold / tangency
   checks), Split, Trim, Boundary (propagation + limits), Extract,
   Multiple Extract, Shape Fillet, Edge Fillet, Chamfer, Translate,
-  Rotate, Scale (point / plane / line reference), Symmetry, Extend
+  Rotate, Scale (point / plane / line reference), Symmetry, Extend,
   (mathematically natural extrapolation of curves and surfaces —
-  Natural / Tangent / Curvature modes).
+  Natural / Tangent / Curvature modes), Close Surface (closed
+  surfaces into a solid, with planar-hole capping).
 
 Every operator has a CATIA-style task dialog (pick-driven inputs,
 OK / Apply / Cancel), idles quietly until its inputs are complete, and
@@ -60,7 +61,7 @@ Requires FreeCAD 1.0 or newer.
 ## Status & quality
 
 Active development. The geometry work is validated by a suite of
-**166 headless regression tests** that run against FreeCAD's own core
+**169 headless regression tests** that run against FreeCAD's own core
 on every change — each operator's mathematics (continuity conditions,
 extrapolation, conic exactness, propagation semantics) is verified
 numerically, not just visually.

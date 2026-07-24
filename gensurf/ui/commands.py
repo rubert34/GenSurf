@@ -162,6 +162,7 @@ class _ReloadWorkbench:
         import gensurf.features.sweep_line
         import gensurf.features.sweep_circle
         import gensurf.features.sweep_conic
+        import gensurf.features.close_surface
         import gensurf.features
         import gensurf.containers
         import gensurf.ui.view_provider
@@ -215,6 +216,7 @@ class _ReloadWorkbench:
             gensurf.features.sweep_line,
             gensurf.features.sweep_circle,
             gensurf.features.sweep_conic,
+            gensurf.features.close_surface,
             gensurf.features,
             gensurf.ui.view_provider,
             gensurf.ui.task_panels,
@@ -386,6 +388,10 @@ _COMMANDS = {
         "GenSurf::SweepConic", "Sweep Conic",
         "Conic sweep: two guides with tangency surfaces, five guides",
         "GenSurf_SweepConic.svg"),
+    "GenSurf_Op_CloseSurface": _FeatureCommand(
+        "GenSurf::CloseSurface", "Close Surface",
+        "Turn a closed set of surfaces into a solid",
+        "GenSurf_CloseSurface.svg"),
 }
 
 
@@ -475,7 +481,8 @@ TOOLBARS = (
     ("GS Operations", [
         "GenSurf_Op_Join", "GenSurf_Grp_SplitTrim",
         "GenSurf_Grp_Extracts", "GenSurf_Grp_Fillets",
-        "GenSurf_Grp_Transforms", "GenSurf_Op_Extend"]),
+        "GenSurf_Grp_Transforms", "GenSurf_Op_Extend",
+        "GenSurf_Op_CloseSurface"]),
     ("GS Dev", ["GenSurf_Dev_Reload"]),
 )
 

@@ -52,6 +52,7 @@ _ICON_BY_TYPE = {
     "GenSurf::SweepLine": "GenSurf_SweepLine.svg",
     "GenSurf::SweepCircle": "GenSurf_SweepCircle.svg",
     "GenSurf::SweepConic": "GenSurf_SweepConic.svg",
+    "GenSurf::CloseSurface": "GenSurf_CloseSurface.svg",
 }
 
 

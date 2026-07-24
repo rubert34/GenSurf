@@ -3323,3 +3323,55 @@ def test_sweep_conic_five_guides(doc):
     assert_recomputes(doc)
     for g in guides:  # the section rides all five guides
         assert sw.Shape.distToShape(g.Shape)[0] < 1e-4
+
+
+# -- CloseSurface ---------------------------------------------------------
+
+
+def _box_face_objs(doc, count=6):
+    box = Part.makeBox(10, 10, 10)
+    objs = []
+    for i, f in enumerate(box.Faces[:count]):
+        o = doc.addObject("Part::Feature", f"BF{i}")
+        o.Shape = f
+        objs.append(o)
+    return objs
+
+
+def test_close_surface_closed_set(doc):
+    from gensurf.features import make_close_surface
+    objs = _box_face_objs(doc)
+    cs = make_close_surface(doc)
+    cs.Elements = [(o, "") for o in objs]
+    assert_recomputes(doc)
+    assert len(cs.Shape.Solids) == 1
+    assert math.isclose(cs.Shape.Volume, 1000.0, rel_tol=1e-9)
+
+
+def test_close_surface_caps_planar_hole(doc):
+    from gensurf.features import make_close_surface
+    objs = _box_face_objs(doc, count=5)  # one face missing
+    cs = make_close_surface(doc)
+    cs.Elements = [(o, "") for o in objs]
+    assert_recomputes(doc)
+    assert math.isclose(cs.Shape.Volume, 1000.0, rel_tol=1e-9)
+
+    cs.CapPlanarHoles = False
+    with pytest.raises(GSFeatureError):
+        cs.Proxy.execute(cs)
+
+
+def test_close_surface_open_nonplanar_errors(doc):
+    from gensurf.features import make_close_surface
+    cyl = doc.addObject("Part::Feature", "CSCyl")
+    # lateral face of a cylinder cut obliquely: non-planar opening? use
+    # a simple lateral face — its openings are planar circles, so use
+    # a wavy extrude instead
+    prof = Part.BSplineCurve()
+    prof.interpolate([App.Vector(0, 0, 0), App.Vector(5, 2, 1),
+                      App.Vector(10, 0, 0)])
+    cyl.Shape = prof.toShape().extrude(App.Vector(0, 5, 0))
+    cs = make_close_surface(doc)
+    cs.Elements = [(cyl, "")]
+    with pytest.raises(GSFeatureError):
+        cs.Proxy.execute(cs)

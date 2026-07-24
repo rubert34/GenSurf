@@ -44,6 +44,7 @@ from . import sweep_explicit  # noqa: F401
 from . import sweep_line  # noqa: F401
 from . import sweep_circle  # noqa: F401
 from . import sweep_conic  # noqa: F401
+from . import close_surface  # noqa: F401
 
 from .datum_plane import make_datum_plane  # noqa: F401
 from .projected_curve import make_projected_curve  # noqa: F401
@@ -83,3 +84,4 @@ from .sweep_explicit import make_sweep_explicit  # noqa: F401
 from .sweep_line import make_sweep_line  # noqa: F401
 from .sweep_circle import make_sweep_circle  # noqa: F401
 from .sweep_conic import make_sweep_conic  # noqa: F401
+from .close_surface import make_close_surface  # noqa: F401
