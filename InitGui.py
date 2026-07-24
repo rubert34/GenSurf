@@ -23,7 +23,7 @@ class GenerativeSurfacesWorkbench(FreeCADGui.Workbench):
         self.__class__._commands = commands.register_all()
         observers.install()  # sketches created in GS land in the active set
 
-        # CATIA-style layout: fly-out groups + single buttons
+        # fly-out groups + single buttons
         for title, items in commands.TOOLBARS:
             self.appendToolbar(title, items)
         self.appendMenu("&GenSurf", commands.MENU)
