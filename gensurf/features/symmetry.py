@@ -68,6 +68,7 @@ def _mirror_matrix(link):
 
 class Symmetry(GSFeature):
     TYPE_ID = "GenSurf::Symmetry"
+    HIDE_INPUTS = ("Source",)
     REQUIRED_LINKS = ("Source", "Reference")
     INPUT_SLOTS = (
         ("Source", "Element to mirror", None, False),

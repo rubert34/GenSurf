@@ -20,6 +20,7 @@ from .registry import register
 
 class Scale(GSFeature):
     TYPE_ID = "GenSurf::Scale"
+    HIDE_INPUTS = ("Source",)
     REQUIRED_LINKS = ("Source", "Reference")
     INPUT_SLOTS = (
         ("Source", "Element to scale", None, False),

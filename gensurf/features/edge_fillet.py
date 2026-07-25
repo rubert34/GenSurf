@@ -56,6 +56,7 @@ def propagate_tangent(shape, edges):
 
 class EdgeFillet(GSFeature):
     TYPE_ID = "GenSurf::EdgeFillet"
+    HIDE_INPUTS = ("Edges",)
     REQUIRED_LINKS = ("Edges",)
     INPUT_SLOTS = (
         ("Edges", "Edge(s) to fillet", ("Edge",), False, True),

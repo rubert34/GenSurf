@@ -99,6 +99,7 @@ def split_keep(element, cutter, keep_other=False):
 
 class Split(GSFeature):
     TYPE_ID = "GenSurf::Split"
+    HIDE_INPUTS = ("Element",)  # the cutter stays visible
     REQUIRED_LINKS = ("Element", "Cutter")
     INPUT_SLOTS = (
         ("Element", "Element to split (surface or curve)",

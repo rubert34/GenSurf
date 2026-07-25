@@ -21,6 +21,7 @@ from .edge_fillet import edges_on_one_object, propagate_tangent
 
 class Chamfer(GSFeature):
     TYPE_ID = "GenSurf::Chamfer"
+    HIDE_INPUTS = ("Edges",)
     REQUIRED_LINKS = ("Edges",)
     INPUT_SLOTS = (
         ("Edges", "Edge(s) to chamfer", ("Edge",), False, True),

@@ -437,6 +437,7 @@ def extend_face(face, edge, target, mode="Natural"):
 
 class Extend(GSFeature):
     TYPE_ID = "GenSurf::Extend"
+    HIDE_INPUTS = ("Boundary", "Element")
     REQUIRED_LINKS = ("Boundary",)
     INPUT_SLOTS = (
         ("Boundary", "Extremity: curve end point or surface boundary edge",

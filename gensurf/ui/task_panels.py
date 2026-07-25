@@ -205,9 +205,43 @@ class FeatureTaskPanel:
         layout.addWidget(self.hint)
         layout.addStretch()
 
+        # live preview edits the object directly — snapshot the state of
+        # an EXISTING feature so Cancel can restore it faithfully
+        self._snapshot = None if created else self._take_snapshot()
+
         Gui.Selection.clearSelection()
         Gui.Selection.addObserver(self)
         self._arm_first_empty()
+
+    # -- cancel-safety snapshot -------------------------------------------
+
+    def _take_snapshot(self):
+        snap = {}
+        for ptype, name, _group, _doc, _default in \
+                getattr(self.obj.Proxy, "PROPERTIES", ()):
+            if not hasattr(self.obj, name):
+                continue
+            v = getattr(self.obj, name)
+            if ptype == "App::PropertyLinkSub":
+                snap[name] = (v[0], list(v[1])) if v else None
+            elif ptype == "App::PropertyLinkSubList":
+                snap[name] = [(o, list(ss)) for o, ss in (v or [])]
+            elif ptype in _LENGTH_TYPES + ("App::PropertyAngle",):
+                snap[name] = str(v)
+            elif ptype == "App::PropertyVector":
+                snap[name] = App.Vector(v)
+            elif ptype.endswith("List"):
+                snap[name] = list(v or [])
+            else:
+                snap[name] = v
+        return snap
+
+    def _restore_snapshot(self):
+        for name, v in (self._snapshot or {}).items():
+            try:
+                setattr(self.obj, name, v)
+            except Exception:
+                pass
 
     # -- slot management --------------------------------------------------
 
@@ -251,6 +285,22 @@ class FeatureTaskPanel:
             btn.setChecked(False)
         self.hint.setText("All required inputs set — press OK to finish.")
 
+    def _arm_next_after(self, prop):
+        """CATIA-style sequential picking: after filling a slot, arm the
+        NEXT empty slot in declaration order — optional ones included,
+        so Curve 1 -> Support 1 -> Curve 2 -> Support 2 flows without
+        touching the dialog."""
+        names = [s[0] for s in self.slots]
+        try:
+            start = names.index(prop) + 1
+        except ValueError:
+            start = 0
+        for p in names[start:]:
+            if not getattr(self.obj, p, None):
+                self._arm(p)
+                return
+        self._arm_first_empty()  # nothing later: fall back to required
+
     # -- FreeCAD selection observer callback -------------------------------
 
     def addSelection(self, doc_name, obj_name, sub, _pos):
@@ -285,7 +335,7 @@ class FeatureTaskPanel:
         field.setText(self._describe(self.armed))
         self.obj.Document.recompute()  # live preview
         if not self._is_multi(self.armed):
-            self._arm_first_empty()  # multi slots stay armed
+            self._arm_next_after(self.armed)  # multi slots stay armed
 
     # -- dialog lifecycle --------------------------------------------------
 
@@ -302,18 +352,41 @@ class FeatureTaskPanel:
     def _cleanup(self):
         Gui.Selection.removeObserver(self)
 
+    def _hide_consumed(self):
+        """CATIA behavior: inputs consumed by the operator disappear
+        when the result is confirmed (declared per feature via
+        HIDE_INPUTS; e.g. Split hides the split element, not the
+        cutter)."""
+        shape = getattr(self.obj, "Shape", None)
+        if shape is None or shape.isNull():
+            return  # nothing built: leave the scene untouched
+        for prop in getattr(self.obj.Proxy, "HIDE_INPUTS", ()):
+            link = getattr(self.obj, prop, None)
+            if not link:
+                continue
+            entries = link if isinstance(link, list) else [link]
+            for entry in entries:
+                linked = entry[0] if isinstance(entry, tuple) else entry
+                vo = getattr(linked, "ViewObject", None)
+                if vo is not None:
+                    vo.Visibility = False
+
     def accept(self):
         self._cleanup()
         self.obj.Document.recompute()
+        self._hide_consumed()
         Gui.Control.closeDialog()
         return True
 
     def reject(self):
         self._cleanup()
+        doc = self.obj.Document
         if self.created:
             name = self.obj.Name
-            doc = self.obj.Document
             doc.removeObject(name)
-            doc.recompute()
+        else:
+            # undo everything live preview applied during the session
+            self._restore_snapshot()
+        doc.recompute()
         Gui.Control.closeDialog()
         return True

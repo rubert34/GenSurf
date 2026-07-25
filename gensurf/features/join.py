@@ -29,6 +29,7 @@ from .extract import _faces_smooth
 
 class Join(GSFeature):
     TYPE_ID = "GenSurf::Join"
+    HIDE_INPUTS = ("Elements",)
     REQUIRED_LINKS = ("Elements",)
     INPUT_SLOTS = (
         ("Elements", "Surfaces / curves to join (2+)",

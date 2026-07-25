@@ -14,6 +14,7 @@ from .registry import register
 
 class Translate(GSFeature):
     TYPE_ID = "GenSurf::Translate"
+    HIDE_INPUTS = ("Source",)
     REQUIRED_LINKS = ("Source",)
     INPUT_SLOTS = (
         ("Source", "Element to translate", None, False),

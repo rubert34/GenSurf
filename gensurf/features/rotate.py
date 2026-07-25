@@ -11,6 +11,7 @@ from .registry import register
 
 class Rotate(GSFeature):
     TYPE_ID = "GenSurf::Rotate"
+    HIDE_INPUTS = ("Source",)
     REQUIRED_LINKS = ("Source", "AxisRef")
     INPUT_SLOTS = (
         ("Source", "Element to rotate", None, False),

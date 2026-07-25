@@ -16,6 +16,7 @@ from .split import cutter_shape_for, split_keep
 
 class Trim(GSFeature):
     TYPE_ID = "GenSurf::Trim"
+    HIDE_INPUTS = ("Element1", "Element2")
     REQUIRED_LINKS = ("Element1", "Element2")
     INPUT_SLOTS = (
         ("Element1", "First element",
