@@ -461,15 +461,17 @@ class MultiSection(GSFeature):
                         extra_params.append(
                             1.0 - 0.08 * (1.0 - params[-2]))
 
-            all_pts = list(pts)
-            all_params = list(params)
-            all_tans = list(tangents)
-            all_flags = list(flags)
-            for (idx, p), par in zip(extra_pts, extra_params):
-                all_pts.insert(idx, p)
-                all_params.insert(idx, par)
-                all_tans.insert(idx, App.Vector(0, 0, 0))
-                all_flags.insert(idx, False)
+            # merge phantoms by PARAMETER: sequential index-based inserts
+            # desynchronize when both extremes carry a phantom (the
+            # second index was computed against the un-grown list)
+            entries = list(zip(params, pts, tangents, flags))
+            entries += [(par, p, App.Vector(0, 0, 0), False)
+                        for (_idx, p), par in zip(extra_pts, extra_params)]
+            entries.sort(key=lambda z: z[0])
+            all_params = [z[0] for z in entries]
+            all_pts = [z[1] for z in entries]
+            all_tans = [z[2] for z in entries]
+            all_flags = [z[3] for z in entries]
 
             bs = Part.BSplineCurve()
             bs.interpolate(Points=all_pts, Parameters=all_params,

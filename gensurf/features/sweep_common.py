@@ -25,7 +25,10 @@ def guide_wire(link, what):
 
 def stations(wire, n=STATIONS):
     """n arc-length-spaced points along the wire."""
-    pts = wire.discretize(n)
+    try:
+        pts = wire.discretize(n)
+    except Part.OCCError as err:
+        raise GSFeatureError(f"degenerate guide curve ({err})")
     return [App.Vector(p) for p in pts]
 
 
@@ -54,6 +57,10 @@ def support_face(link, what):
 def face_normal_at(face, p):
     u, v = face.Surface.parameter(p)
     n = App.Vector(face.normalAt(u, v))
+    if n.Length < 1e-12:
+        raise GSFeatureError(
+            "the surface normal is undefined near a station point "
+            "(singular point, e.g. a cone apex)")
     n.normalize()
     return n
 

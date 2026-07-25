@@ -157,6 +157,8 @@ class BlendSurface(GSFeature):
         cross = normal.cross(edge_tangent)
         if cross.Length < 1e-9:
             d = App.Vector(toward)
+            if d.Length < 1e-12:
+                return zero, zero  # coincident sample points
             d.normalize()
             return d * m, zero
         cross.normalize()

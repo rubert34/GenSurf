@@ -122,7 +122,10 @@ def plane_from_link(link):
             return None
         shape = shape.Faces[0]
     if isinstance(shape.Surface, Part.Plane):
-        return shape.Surface.Position, shape.Surface.Axis
+        axis = App.Vector(shape.Surface.Axis)
+        if shape.Orientation == "Reversed":
+            axis = axis.negative()  # true outward normal of the face
+        return shape.Surface.Position, axis
     return None
 
 
@@ -186,6 +189,45 @@ def curve_wires(shape):
     return [Part.Wire(group) for group in sorter(edges)]
 
 
+def oriented_edge_walk(wire, per_edge):
+    """Sample a wire edge-by-edge in TRAVEL order: yields one list of
+    (point, unit_tangent) per edge, with reversed-orientation edges
+    walked (and their tangents flipped) so the sequence always advances
+    along the wire. Guards the classic trap: Part.Wire keeps each
+    edge's own curve direction, which may oppose the travel."""
+    import Part  # noqa: F401
+    edges = list(getattr(wire, "OrderedEdges", None) or wire.Edges)
+    out = []
+    cur = None
+    for k, edge in enumerate(edges):
+        a = edge.valueAt(edge.FirstParameter)
+        b = edge.valueAt(edge.LastParameter)
+        if cur is None:
+            if len(edges) > 1:
+                nxt = edges[1]
+                na = nxt.valueAt(nxt.FirstParameter)
+                nb = nxt.valueAt(nxt.LastParameter)
+                forward = min((b - na).Length, (b - nb).Length) <= \
+                    min((a - na).Length, (a - nb).Length)
+            else:
+                forward = True
+        else:
+            forward = (a - cur).Length <= (b - cur).Length
+        u0, u1 = edge.FirstParameter, edge.LastParameter
+        samples = []
+        for i in range(per_edge + 1):
+            f = i / per_edge
+            t = u0 + (u1 - u0) * (f if forward else 1.0 - f)
+            p = App.Vector(edge.valueAt(t))
+            tan = App.Vector(edge.tangentAt(t))
+            if not forward:
+                tan = tan.negative()
+            samples.append((p, tan))
+        out.append(samples)
+        cur = b if forward else a
+    return out
+
+
 def resolve_linksub(link, expect=None):
     """Resolve an App::PropertyLinkSub to a concrete subshape (or whole shape).
 
@@ -196,14 +238,22 @@ def resolve_linksub(link, expect=None):
     if not link:
         raise GSFeatureError("required input link is empty")
     obj, subs = link
-    if not subs:
-        shape = obj.Shape
-    else:
-        shape = obj.Shape.getElement(subs[0]) if len(subs) == 1 else None
-        if shape is None:
-            import Part
-            shape = Part.makeCompound(
-                [obj.Shape.getElement(s) for s in subs])
+    if getattr(obj, "Shape", None) is None:
+        raise GSFeatureError(f"{obj.Name} carries no geometry")
+    try:
+        if not subs:
+            shape = obj.Shape
+        else:
+            shape = obj.Shape.getElement(subs[0]) if len(subs) == 1 \
+                else None
+            if shape is None:
+                import Part
+                shape = Part.makeCompound(
+                    [obj.Shape.getElement(s) for s in subs])
+    except Exception:
+        raise GSFeatureError(
+            f"sub-element {subs} of {obj.Name} no longer exists — "
+            "upstream geometry changed; re-pick the input")
     if expect and shape.ShapeType != expect:
         raise GSFeatureError(
             f"expected a {expect}, got {shape.ShapeType} from {obj.Name}")

@@ -120,14 +120,11 @@ class Point(GSFeature):
             shape = resolve_linksub(obj.Curve)
             edge = shape if shape.ShapeType == "Edge" else shape.Edges[0]
             curve = edge.Curve
-            center = getattr(curve, "Center", None)
-            if center is None:
-                center = getattr(curve, "Location", None)
-            if center is None:
+            if not isinstance(curve, (Part.Circle, Part.Ellipse)):
+                # Part.Line also has a Location — that is NOT a center
                 raise GSFeatureError(
-                    "Center: the edge has no center (not a circle, "
-                    "ellipse or sphere edge)")
-            return Part.Vertex(App.Vector(center))
+                    "Center: pick a circular or elliptical edge")
+            return Part.Vertex(App.Vector(curve.Center))
 
         if kind == "Between":
             p1 = _vertex_point(obj.RefPoint, "first point")

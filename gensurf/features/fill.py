@@ -133,9 +133,12 @@ class Fill(GSFeature):
             for sub in (subs if subs else ("",)):
                 shape = linked.Shape.getElement(sub) if sub \
                     else linked.Shape
-                for w in curve_wires(shape):
-                    for e in w.Edges:
-                        yield e, _owner_face(linked, e), order
+                # use the RAW edges: wrapping through Part.Wire heals
+                # them and breaks the isSame ownership match below
+                edges = [shape] if shape.ShapeType == "Edge" \
+                    else shape.Edges
+                for e in edges:
+                    yield e, _owner_face(linked, e), order
 
     def build(self, obj):
         edges = []          # loop assembly

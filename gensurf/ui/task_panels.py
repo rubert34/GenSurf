@@ -80,7 +80,7 @@ def make_param_widget(obj, ptype, name, error_cb):
 
     if ptype == "App::PropertyInteger":
         spin = QtWidgets.QSpinBox()
-        spin.setRange(2, 500)
+        spin.setRange(0, 100000)
         spin.setValue(int(getattr(obj, name)))
         spin.valueChanged.connect(
             commit(lambda v: setattr(obj, name, int(v))))

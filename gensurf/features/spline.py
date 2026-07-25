@@ -55,7 +55,10 @@ class Spline(GSFeature):
                         "spline points must be single vertices")
             p = App.Vector(shape.Point)
             if pts and (p - pts[-1]).Length < 1e-9:
-                continue
+                # silent dedup would desynchronize TangentRows indices
+                raise GSFeatureError(
+                    f"points {len(pts)} and {len(pts) + 1} coincide — "
+                    "remove the duplicate pick")
             pts.append(p)
         if len(pts) < 2:
             raise GSFeatureError("a spline needs at least two points")

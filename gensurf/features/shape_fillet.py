@@ -67,9 +67,10 @@ class ShapeFillet(GSFeature):
 
         k1 = _kept_piece(f1, f2, obj.ReverseSide1)
         k2 = _kept_piece(f2, f1, obj.ReverseSide2)
-        if k1 is None or k2 is None:
-            # supports may already meet at a shared boundary
-            k1, k2 = f1, f2
+        # keep a successful trim even when only one side was traversed
+        # (T-configuration: one support's edge lies ON the other)
+        k1 = k1 if k1 is not None else f1
+        k2 = k2 if k2 is not None else f2
 
         comp = Part.makeCompound([k1.copy(), k2.copy()])
         comp.sewShape()

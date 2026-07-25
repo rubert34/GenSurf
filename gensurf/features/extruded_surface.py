@@ -47,6 +47,8 @@ class ExtrudedSurface(GSFeature):
     )
 
     def onChanged(self, obj, prop):
+        if "Restore" in obj.State:
+            return  # property loads during restore are not user picks
         # Picking a direction reference implies you want to use it.
         if prop == "DirectionRef" and getattr(obj, "DirectionRef", None) \
                 and hasattr(obj, "DirectionMode"):
@@ -85,7 +87,8 @@ class ExtrudedSurface(GSFeature):
         import Part
         results = []
         for wire in wires:
-            base = wire.translated(d * (-rev)) if rev > 0 else wire
+            # shift for any non-zero Limit 2 (negative = start above zero)
+            base = wire.translated(d * (-rev)) if abs(rev) > 1e-12 else wire
             results.append(base.extrude(d * total))
         return results[0] if len(results) == 1 else Part.makeCompound(results)
 

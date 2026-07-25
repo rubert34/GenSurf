@@ -16,7 +16,8 @@ import FreeCAD as App
 import Part
 
 from .base import (GSFeature, GSFeatureError, resolve_linksub,
-                   direction_from_ref, curve_wires, make_feature)
+                   direction_from_ref, curve_wires, oriented_edge_walk,
+                   make_feature)
 from .registry import register
 
 _SAMPLES = 48
@@ -67,13 +68,10 @@ class CurveOffset3D(GSFeature):
             dist = -dist
 
         pieces = []
-        for edge in wire.Edges:
+        # walk in travel order so reversed edges don't flip the side
+        for samples in oriented_edge_walk(wire, _SAMPLES):
             pts = []
-            u0, u1 = edge.FirstParameter, edge.LastParameter
-            for i in range(_SAMPLES + 1):
-                t = u0 + (u1 - u0) * i / _SAMPLES
-                p = App.Vector(edge.valueAt(t))
-                tan = App.Vector(edge.tangentAt(t))
+            for p, tan in samples:
                 s = d.cross(tan)
                 if s.Length < 1e-9:
                     raise GSFeatureError(

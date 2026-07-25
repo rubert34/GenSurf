@@ -51,7 +51,10 @@ def _mirror_matrix(link):
             0, 0, 0, 1)
 
     shape = resolve_linksub(link)
-    if shape.ShapeType == "Vertex" or len(shape.Vertexes) == 1:
+    # a closed curved edge (circle) also has a single vertex — its seam
+    # — which must NOT silently become a point-symmetry center
+    if shape.ShapeType == "Vertex" or \
+            (not shape.Edges and len(shape.Vertexes) == 1):
         p = shape.Vertexes[0].Point
         return App.Matrix(
             -1, 0, 0, 2 * p.x,

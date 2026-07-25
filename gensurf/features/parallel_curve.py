@@ -19,7 +19,8 @@ import FreeCAD as App
 import Part
 
 from .base import (GSFeature, GSFeatureError, resolve_linksub,
-                   plane_from_link, curve_wires, make_feature)
+                   plane_from_link, curve_wires, oriented_edge_walk,
+                   make_feature)
 from .registry import register
 
 _SAMPLES = 60
@@ -69,6 +70,10 @@ class ParallelCurve(GSFeature):
             t = App.Vector(wire.Edges[0].tangentAt(
                 wire.Edges[0].FirstParameter))
             s = t.cross(normal)
+            if s.Length < 1e-9:
+                raise GSFeatureError(
+                    "the line is parallel to the offset plane normal — "
+                    "give a support surface")
             s.normalize()
             a = wire.Edges[0].Vertexes[0].Point + s * dist
             b = wire.Edges[0].Vertexes[-1].Point + s * dist
@@ -102,13 +107,10 @@ class ParallelCurve(GSFeature):
 
     def _sampled_offset(self, wire, face, dist, mode):
         pts = []
-        for edge in wire.Edges:
-            n_samples = max(8, _SAMPLES // max(1, len(wire.Edges)))
-            u0, u1 = edge.FirstParameter, edge.LastParameter
-            for i in range(n_samples + 1):
-                t = u0 + (u1 - u0) * i / n_samples
-                p = App.Vector(edge.valueAt(t))
-                tan = App.Vector(edge.tangentAt(t))
+        n_samples = max(8, _SAMPLES // max(1, len(wire.Edges)))
+        # walk in travel order so reversed edges don't flip the side
+        for samples in oriented_edge_walk(wire, n_samples):
+            for p, tan in samples:
                 if pts and (p - pts[-1][0]).Length < 1e-9:
                     continue
                 pts.append((p, tan))
@@ -178,6 +180,10 @@ class ParallelCurve(GSFeature):
             plane = Part.makeCompound(wire.Edges).findPlane()
             n = plane.Axis if plane else App.Vector(0, 0, 1)
             s = tan.cross(n)
+            if s.Length < 1e-9:
+                raise GSFeatureError(
+                    "the curve tangent is parallel to the plane normal "
+                    "— give a support surface")
             s.normalize()
         side = 1.0 if (pt - on_curve).dot(s) >= 0 else -1.0
         return dist * side

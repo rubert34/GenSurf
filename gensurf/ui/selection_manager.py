@@ -40,7 +40,12 @@ class SelectionManager:
         obj = App.getDocument(doc).getObject(obj_name)
         if obj is None:
             return
-        shape_type = obj.Shape.getElement(sub).ShapeType if sub else None
+        try:
+            shape_type = obj.Shape.getElement(sub).ShapeType \
+                if sub and getattr(obj, "Shape", None) is not None \
+                else None
+        except Exception:
+            shape_type = None  # shapeless object (datum) or stale sub
         if slot.expect and shape_type and shape_type not in slot.expect:
             return
         if not slot.multiple:

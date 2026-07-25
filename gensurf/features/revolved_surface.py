@@ -53,7 +53,7 @@ class RevolvedSurface(GSFeature):
         results = []
         for wire in wires:
             start = wire
-            if rev > 0:
+            if abs(rev) > 1e-12:  # any non-zero Limit 2, either sign
                 start = wire.copy()
                 start.rotate(base, direction, -rev)
             results.append(start.revolve(base, direction, total))

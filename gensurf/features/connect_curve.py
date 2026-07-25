@@ -144,6 +144,10 @@ class ConnectCurve(GSFeature):
         q1, v1_out, a1 = _hermite_data(e2, last2, obj.Continuity2,
                                        obj.Tension2, span)
         chord = q1 - q0
+        if chord.Length < 1e-9:
+            raise GSFeatureError(
+                "the two picked end points coincide — nothing to "
+                "connect")
         chord_dir = App.Vector(chord)
         chord_dir.normalize()
         if v0 is None:

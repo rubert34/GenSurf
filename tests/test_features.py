@@ -3438,3 +3438,103 @@ def test_blend_borders_align_vs_natural(doc):
     mid = lateral.valueAt(
         (lateral.FirstParameter + lateral.LastParameter) / 2)
     assert abs(mid.x) < 1e-6  # natural: straight across the gap
+
+
+# -- review-round regression tests ---------------------------------------
+
+
+def test_extrude_negative_limit2(doc):
+    from gensurf.features import make_extruded_surface
+    ln = _line_edge(doc, (0, 0, 0), (10, 0, 0), name="NL")
+    ex = make_extruded_surface(doc)
+    ex.Profile = (ln, "")
+    ex.DirectionMode = "Vector"
+    ex.Direction = App.Vector(0, 0, 1)
+    ex.LengthFwd = "10 mm"
+    ex.LengthRev = "-5 mm"   # surface must span z in [5, 10]
+    assert_recomputes(doc)
+    bb = ex.Shape.BoundBox
+    assert math.isclose(bb.ZMin, 5.0, abs_tol=1e-9)
+    assert math.isclose(bb.ZMax, 10.0, abs_tol=1e-9)
+
+
+def test_trim_surface_by_curve_keeps_curve(doc):
+    from gensurf.features import make_trim
+    support = _support_face(doc)                      # 20x20 at z=0
+    cut = _line_edge(doc, (10, -5, 0), (10, 25, 0), name="TCut")
+    tr = make_trim(doc)
+    tr.Element1 = (support, ["Face1"])
+    tr.Element2 = (cut, "")
+    assert_recomputes(doc)
+    # both the kept surface half AND the kept curve half must survive
+    assert tr.Shape.Faces and tr.Shape.Area > 1
+    free_edges = [e for e in tr.Shape.Edges
+                  if not any(any(e.isSame(fe) for fe in f.Edges)
+                             for f in tr.Shape.Faces)]
+    assert free_edges, "trimmed curve piece was dropped from the result"
+
+
+def test_extend_negative_length_shrinks(doc):
+    from gensurf.features import make_extend
+    ln = _line_edge(doc, (0, 0, 0), (10, 0, 0), name="ShrL")
+    ex = make_extend(doc)
+    ex.Boundary = (ln, ["Vertex2"])   # the (10,0,0) end
+    ex.Length = "-3 mm"
+    assert_recomputes(doc)
+    assert math.isclose(ex.Shape.Length, 7.0, rel_tol=1e-9)
+    xs = [v.Point.x for v in ex.Shape.Vertexes]
+    assert math.isclose(max(xs), 7.0, rel_tol=1e-9)
+
+
+def test_point_center_rejects_line(doc):
+    from gensurf.features import make_point
+    ln = _line_edge(doc, (0, 0, 0), (10, 0, 0), name="PCL")
+    pt = make_point(doc)
+    pt.PointType = "Center"
+    pt.Curve = (ln, "")
+    with pytest.raises(GSFeatureError):
+        pt.Proxy.execute(pt)
+
+
+def test_symmetry_rejects_circle_reference(doc):
+    from gensurf.features import make_symmetry
+    src = _line_edge(doc, (0, 0, 0), (10, 0, 0), name="SyRs")
+    circ = doc.addObject("Part::Feature", "SyRc")
+    circ.Shape = Part.Circle(
+        App.Vector(5, 5, 0), App.Vector(0, 0, 1), 3).toShape()
+    sy = make_symmetry(doc)
+    sy.Source = (src, "")
+    sy.Reference = (circ, "")
+    with pytest.raises(GSFeatureError):
+        sy.Proxy.execute(sy)
+
+
+def test_spline_rejects_coincident_points(doc):
+    from gensurf.features import make_spline
+    objs = []
+    for i, p in enumerate([(0, 0, 0), (5, 0, 0), (5, 0, 0)]):
+        o = doc.addObject("Part::Feature", f"SDup{i}")
+        o.Shape = Part.Vertex(App.Vector(*p))
+        objs.append(o)
+    sp = make_spline(doc)
+    sp.Points = [(o, "") for o in objs]
+    with pytest.raises(GSFeatureError):
+        sp.Proxy.execute(sp)
+
+
+def test_curve_offset_3d_reversed_edge_wire(doc):
+    from gensurf.features import make_curve_offset_3d
+    # two collinear edges, the second built REVERSED (curve runs
+    # backwards relative to travel) — offset must stay on one side
+    e1 = Part.makeLine(App.Vector(0, 0, 0), App.Vector(5, 0, 0))
+    e2 = Part.makeLine(App.Vector(10, 0, 0), App.Vector(5, 0, 0))
+    lw = doc.addObject("Part::Feature", "RevW")
+    lw.Shape = Part.Wire(Part.sortEdges([e1, e2])[0])
+    co = make_curve_offset_3d(doc)
+    co.Curve = (lw, "")
+    co.Offset = "2 mm"
+    assert_recomputes(doc)
+    ys = [p.y for e in co.Shape.Edges for p in e.discretize(8)]
+    assert all(abs(abs(y) - 2.0) < 1e-6 for y in ys), \
+        "offset flipped sides on the reversed edge"
+    assert math.isclose(co.Shape.Length, 10.0, rel_tol=1e-3)

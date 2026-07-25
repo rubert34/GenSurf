@@ -140,9 +140,10 @@ class SweepExplicit(GSFeature):
             if obj.ReferenceSurface:
                 face = support_face(obj.ReferenceSurface,
                                     "reference surface")
-                if guide.distToShape(face)[0] > 1e-4:
+                # validate the curve the pipe shell actually follows
+                if spine.distToShape(face)[0] > 1e-4:
                     raise GSFeatureError(
-                        "the guide curve must lie on the reference "
+                        "the spine curve must lie on the reference "
                         "surface")
                 ps.setSpineSupport(face)
 

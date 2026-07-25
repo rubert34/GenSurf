@@ -36,15 +36,22 @@ class Trim(GSFeature):
 
     @staticmethod
     def _join(pieces):
-        faces = [f for p in pieces for f in p.Faces]
+        face_pieces = [p for p in pieces if p.Faces]
+        edge_pieces = [p for p in pieces if not p.Faces and p.Edges]
+        faces = [f for p in face_pieces for f in p.Faces]
         if faces:
+            surface = None
             try:
                 shell = Part.makeShell(faces)
                 if not shell.isNull() and shell.Faces:
-                    return shell
+                    surface = shell
             except Part.OCCError:
                 pass
-            return Part.makeCompound(pieces)
+            if surface is None:
+                surface = Part.makeCompound(face_pieces)
+            if edge_pieces:  # mixed surface x curve trim: keep both
+                return Part.makeCompound([surface] + edge_pieces)
+            return surface
         edges = [e for p in pieces for e in p.Edges]
         if edges:
             try:

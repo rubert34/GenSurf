@@ -108,6 +108,8 @@ def _extension_edge_analytic(edge, at_last, target):
 def extend_curve(shape, extremity_point, target, mode="Natural"):
     """Extend the wire/edge past the end nearest to extremity_point."""
     sorter = getattr(Part, "sortEdges", None) or Part.__sortEdges__
+    if not shape.Edges:
+        raise GSFeatureError("the element contains no curve to extend")
     wires = [Part.Wire(g) for g in sorter(shape.Edges)]
     # the wire whose endpoint matches the picked vertex
     def end_dist(w):
@@ -125,12 +127,36 @@ def extend_curve(shape, extremity_point, target, mode="Natural"):
     at_last_param = (end_edge.valueAt(end_edge.LastParameter)
                      - extremity_point).Length < 1e-6
 
+    if target < 0:  # negative length shrinks from the picked end
+        remove = -target
+        if remove >= end_edge.Length - 1e-9:
+            raise GSFeatureError(
+                "shrink length exceeds the end edge — use Split for "
+                "larger cuts")
+        if at_last_param:
+            t = end_edge.getParameterByLength(end_edge.Length - remove)
+            trimmed = end_edge.Curve.toShape(end_edge.FirstParameter, t)
+        else:
+            t = end_edge.getParameterByLength(remove)
+            trimmed = end_edge.Curve.toShape(t, end_edge.LastParameter)
+        others = [e for e in wire.Edges if not e.isSame(end_edge)]
+        group = sorter(others + [trimmed])[0] if others else [trimmed]
+        return Part.Wire(group)
+
     if mode == "Tangent":
         ext = _tangent_extension_edge(end_edge, at_last_param, target)
     elif mode == "Curvature":
         ext = _curvature_extension_edge(end_edge, at_last_param, target)
     elif type(end_edge.Curve).__name__ in _SPLINE_TYPES:
-        ext = _extension_edge_spline(end_edge.Curve, at_last_param, target)
+        # trim the geometric curve to the edge's own range first: after
+        # a split, the edge covers only part of the underlying spline
+        curve = end_edge.Curve
+        try:
+            curve = curve.toBSpline(end_edge.FirstParameter,
+                                    end_edge.LastParameter)
+        except Part.OCCError:
+            pass
+        ext = _extension_edge_spline(curve, at_last_param, target)
     else:
         ext = _extension_edge_analytic(end_edge, at_last_param, target)
 
@@ -373,14 +399,23 @@ def extend_face(face, edge, target, mode="Natural"):
     if new[0] >= new[1] or new[2] >= new[3]:
         raise GSFeatureError("negative extension removes the whole surface")
 
-    # exact single-face path: works whenever OCC accepts the topology
-    # (analytic, extrusion, revolution surfaces)
+    # exact single-face path: only when the face actually fills its
+    # parameter rectangle — rebuilding a trimmed face (hole, non-
+    # rectangular outline) from bounds would silently drop the trims
+    rect_like = False
     try:
-        out = surf.toShape(*new)
-        if not out.isNull() and out.Faces and out.isValid():
-            return out
+        full = surf.toShape(u1, u2, v1, v2)
+        rect_like = abs(full.Area - face.Area) < \
+            1e-6 * max(face.Area, 1.0)
     except Part.OCCError:
         pass
+    if rect_like:
+        try:
+            out = surf.toShape(*new)
+            if not out.isNull() and out.Faces and out.isValid():
+                return out
+        except Part.OCCError:
+            pass
 
     if target < 0:
         raise GSFeatureError(

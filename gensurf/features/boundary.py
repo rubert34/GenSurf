@@ -201,13 +201,23 @@ class Boundary(GSFeature):
         """Portion of a chain entry between travel-fractions f0 < f1."""
         e, a, _b = entry
         forward = (e.valueAt(e.FirstParameter) - a).Length < _TOL
-        p_lo, p_hi = e.FirstParameter, e.LastParameter
-        if forward:
-            q0 = p_lo + (p_hi - p_lo) * f0
-            q1 = p_lo + (p_hi - p_lo) * f1
-        else:
-            q0 = p_hi - (p_hi - p_lo) * f1
-            q1 = p_hi - (p_hi - p_lo) * f0
+        # travel fraction -> parameter by ARC LENGTH (uniform-parameter
+        # interpolation cuts curved edges at the wrong spot)
+        try:
+            if forward:
+                q0 = e.getParameterByLength(f0 * e.Length)
+                q1 = e.getParameterByLength(f1 * e.Length)
+            else:
+                q0 = e.getParameterByLength((1.0 - f1) * e.Length)
+                q1 = e.getParameterByLength((1.0 - f0) * e.Length)
+        except Part.OCCError:
+            p_lo, p_hi = e.FirstParameter, e.LastParameter
+            if forward:
+                q0 = p_lo + (p_hi - p_lo) * f0
+                q1 = p_lo + (p_hi - p_lo) * f1
+            else:
+                q0 = p_hi - (p_hi - p_lo) * f1
+                q1 = p_hi - (p_hi - p_lo) * f0
         try:
             return e.Curve.toShape(q0, q1)
         except Part.OCCError:
@@ -228,7 +238,17 @@ class Boundary(GSFeature):
                 d, pairs, _ = e.distToShape(Part.Vertex(pt))
                 if d < best[0]:
                     on_e = pairs[0][0]
-                    frac = (on_e - a).Length / max(lengths[i], 1e-12)
+                    # arc-length station, not straight-line chord
+                    try:
+                        t = e.Curve.parameter(on_e)
+                        arc = abs(e.Curve.length(e.FirstParameter, t))
+                    except Part.OCCError:
+                        arc = (on_e - e.valueAt(e.FirstParameter)).Length
+                    frac = arc / max(lengths[i], 1e-12)
+                    forward = (e.valueAt(e.FirstParameter) - a).Length \
+                        < _TOL
+                    if not forward:
+                        frac = 1.0 - frac
                     best = (d, starts[i] + min(max(frac, 0), 1) * lengths[i])
             return best[1]
 
