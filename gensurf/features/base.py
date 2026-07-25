@@ -240,16 +240,27 @@ def resolve_linksub(link, expect=None):
     obj, subs = link
     if getattr(obj, "Shape", None) is None:
         raise GSFeatureError(f"{obj.Name} carries no geometry")
+    def _one(sub):
+        """Resolve one subname: Part.getShape follows App::Link chains
+        and container placements (TNP-safer); getElement is the
+        fallback."""
+        import Part
+        try:
+            s = Part.getShape(obj, sub, needSubElement=True)
+            if s is not None and not s.isNull():
+                return s
+        except Exception:
+            pass
+        return obj.Shape.getElement(sub)
+
     try:
         if not subs:
             shape = obj.Shape
         else:
-            shape = obj.Shape.getElement(subs[0]) if len(subs) == 1 \
-                else None
+            shape = _one(subs[0]) if len(subs) == 1 else None
             if shape is None:
                 import Part
-                shape = Part.makeCompound(
-                    [obj.Shape.getElement(s) for s in subs])
+                shape = Part.makeCompound([_one(s) for s in subs])
     except Exception:
         raise GSFeatureError(
             f"sub-element {subs} of {obj.Name} no longer exists — "

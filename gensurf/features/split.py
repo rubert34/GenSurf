@@ -76,13 +76,15 @@ def side_value(piece, cutter, element_start=None):
     raise GSFeatureError("cannot determine sides for this cutter type")
 
 
-def split_keep(element, cutter, keep_other=False):
+def split_keep(element, cutter, keep_other=False, fuzzy=0.0):
     """Split element by cutter, return the kept pieces (list).
 
     Uses generalFuse (BOPAlgo_Builder): its map reports which result
     pieces originate from the element, excluding the cutter's own pieces.
+    ``fuzzy`` raises the boolean tolerance — the cure for near-touching
+    surfaces that fail or leave slivers at the default precision.
     """
-    _compound, mapping = element.generalFuse([cutter], 1e-6)
+    _compound, mapping = element.generalFuse([cutter], max(fuzzy, 1e-6))
     pieces = list(mapping[0]) if mapping and mapping[0] else []
     if len(pieces) < 2:
         raise GSFeatureError(
@@ -114,12 +116,17 @@ class Split(GSFeature):
          "Element that does the cutting", None),
         ("App::PropertyBool", "KeepOtherSide", "Split",
          "Keep the other side of the cut", False),
+        ("App::PropertyDistance", "Tolerance", "Split",
+         "Extra boolean tolerance for near-touching geometry (fuzzy)",
+         "0 mm"),
     )
 
     def build(self, obj):
         element = resolve_linksub(obj.Element)
         cutter = cutter_shape_for(obj.Cutter, element)
-        kept = split_keep(element, cutter, obj.KeepOtherSide)
+        fuzzy = getattr(obj, "Tolerance", None)
+        fuzzy = fuzzy.getValueAs("mm").Value if fuzzy else 0.0
+        kept = split_keep(element, cutter, obj.KeepOtherSide, fuzzy)
         return kept[0] if len(kept) == 1 else Part.makeCompound(kept)
 
 

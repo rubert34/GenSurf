@@ -12,7 +12,7 @@ from the surfaces that matter.
 
 ## What's inside
 
-**40 parametric operators** across four toolbars, with fly-out button
+**42 parametric operators** across five toolbars, with fly-out button
 groups:
 
 - **Structure** — Geometrical Set insertion with an active-set
@@ -29,7 +29,7 @@ groups:
   two guides / pulling direction; Line with two limits, limit-middle,
   reference surface, draft direction; Circle with three guides, two
   guides + radius, center-based; Conic with true rational-conic
-  sections), Fill (per-edge continuity, passing points),
+  sections), Fill (true per-edge G0/G1/G2 continuity, passing points),
   Multi-Sections (per-section and per-guide supports and continuity),
   Blend (per-side position / tangency / curvature with tension).
 - **Operations** — Join (with connectivity / manifold / tangency
@@ -38,7 +38,9 @@ groups:
   Rotate, Scale (point / plane / line reference), Symmetry, Extend
   (mathematically natural extrapolation of curves and surfaces —
   Natural / Tangent / Curvature modes), Close Surface (closed
-  surfaces into a solid, with planar-hole capping).
+  surfaces into a solid, with planar-hole capping), Healing (geometry
+  repair, small-edge cleanup, simplification).
+- **Analysis** — Curvature Comb (porcupine analysis of curves).
 
 Every operator has a pick-driven task dialog (select inputs in the 3D
 view, set parameters, OK / Apply / Cancel), idles quietly until its
@@ -62,7 +64,7 @@ Requires FreeCAD 1.0 or newer.
 ## Status & quality
 
 Active development. The geometry work is validated by a suite of
-**177 headless regression tests** that run against FreeCAD's own core
+**181 headless regression tests** that run against FreeCAD's own core
 on every change — each operator's mathematics (continuity conditions,
 extrapolation, conic exactness, propagation semantics) is verified
 numerically, not just visually.

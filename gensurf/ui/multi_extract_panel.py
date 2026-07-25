@@ -26,6 +26,8 @@ class MultiExtractTaskPanel:
     def __init__(self, obj, created=False):
         self.obj = obj
         self.created = created
+        if not created:  # dialog session = one transaction (see task_panels)
+            obj.Document.openTransaction(f"Edit {obj.Label}")
         self.adding = False
 
         self.form = QtWidgets.QWidget()
@@ -206,15 +208,14 @@ class MultiExtractTaskPanel:
     def accept(self):
         self._cleanup()
         self._recompute()
+        self.obj.Document.commitTransaction()
         Gui.Control.closeDialog()
         return True
 
     def reject(self):
         self._cleanup()
-        if self.created:
-            name = self.obj.Name
-            doc = self.obj.Document
-            doc.removeObject(name)
-            doc.recompute()
+        doc = self.obj.Document
+        doc.abortTransaction()  # removes created / reverts edited
+        doc.recompute()
         Gui.Control.closeDialog()
         return True

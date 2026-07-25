@@ -1,20 +1,15 @@
 """Fill — GSD 'Fill' feature: n-sided patch bounded by a closed loop,
 with per-edge continuity, CATIA-style.
 
-OCC entry point: GeomPlate_BuildPlateSurface via Part.GeomPlate — the
-plate-surface solver CATIA's Fill is built on. The result is a trimmed
-B-spline patch (many spans), same character as CATIA's.
+OCC entry point: BRepOffsetAPI_MakeFilling — the constrained-filling
+solver, driven with TRUE per-edge continuity orders: Position (G0),
+Tangent (G1) and Curvature (G2) constraints are imposed against each
+edge's own support surface, exactly as in CATIA. Optional passing
+points pull the patch through them.
 
-Per-edge continuity: distribute boundary picks across three slots —
-Position (any curve), Tangent and Curvature (must be edges of a support
-surface). The GeomPlate Python binding cannot express curve-on-surface
-constraints directly, so tangency/curvature are enforced by auxiliary
-constraint rows sampled from the support's own tangent-plane
-(respectively osculating) continuation just inside the patch — a close
-approximation whose error shrinks with the inset (2% of edge length).
-
-Optional passing points pull the patch through them (CATIA's point
-constraint).
+Fallback: if MakeFilling fails on a given input, the previous
+GeomPlate plate-surface path (with sampled continuation-row
+approximation of G1/G2) is used instead.
 """
 
 import FreeCAD as App
@@ -140,25 +135,34 @@ class Fill(GSFeature):
                 for e in edges:
                     yield e, _owner_face(linked, e), order
 
-    def build(self, obj):
-        edges = []          # loop assembly
-        support_rows = []   # extra plate constraints
-
+    def _collect(self, obj):
+        """(plain_edges, [(edge, support_face, order)], points) or None
+        while the boundary is empty."""
+        plain, constrained = [], []
         for shape in resolve_linksublist(obj.Boundary or []):
             for w in curve_wires(shape):
-                edges.extend(w.Edges)
+                plain.extend(w.Edges)
         for links, order in ((obj.BoundaryTangent, 1),
                              (obj.BoundaryCurvature, 2)):
             for e, face, o in self._constrained_picks(links, order):
-                edges.append(e)
-                support_rows.extend(_support_rows(e, face, o))
-
-        if not edges:
+                constrained.append((e, face, o))
+        if not plain and not constrained:
             App.Console.PrintWarning(
                 "[GenSurf] Fill: waiting for boundary curves\n")
-            return None  # idle: boundary not picked yet
+            return None
+        points = []
+        if obj.PassingPoints:
+            for shape in resolve_linksublist(obj.PassingPoints):
+                if shape.ShapeType != "Vertex":
+                    raise GSFeatureError(
+                        "passing points must be vertex picks")
+                points.append(App.Vector(shape.Point))
+        return plain, constrained, points
+
+    @staticmethod
+    def _check_loop(all_edges):
         sorter = getattr(Part, "sortEdges", None) or Part.__sortEdges__
-        groups = sorter(edges)
+        groups = sorter(list(all_edges))
         if len(groups) != 1:
             raise GSFeatureError(
                 f"boundary splits into {len(groups)} separate chains — "
@@ -167,23 +171,57 @@ class Fill(GSFeature):
         if not wire.isClosed():
             raise GSFeatureError(
                 "boundary is not closed — the curves must form a loop")
+        return wire
+
+    def _build_filling(self, plain, constrained, points):
+        """True per-edge continuity via BRepOffsetAPI_MakeFilling."""
+        mf = Part.BRepOffsetAPI.MakeFilling()
+        for e in plain:
+            mf.add(Constraint=e, Order=0, IsBound=True)
+        for e, face, order in constrained:
+            mf.add(Constraint=e, Support=face, Order=order, IsBound=True)
+        for p in points:
+            mf.add(p)
+        mf.build()
+        if not mf.isDone():
+            raise GSFeatureError("filling solver did not converge")
+        result = mf.shape()
+        if result.isNull() or not result.Faces \
+                or result.Faces[0].Area < 1e-12:
+            raise GSFeatureError("fill produced no valid patch")
+        return result
+
+    def build(self, obj):
+        collected = self._collect(obj)
+        if collected is None:
+            return None  # idle: boundary not picked yet
+        plain, constrained, points = collected
+        wire = self._check_loop(plain + [c[0] for c in constrained])
+
+        # primary path: the real constrained-filling solver
+        try:
+            return self._build_filling(plain, constrained, points)
+        except (Part.OCCError, GSFeatureError) as err:
+            App.Console.PrintWarning(
+                f"[GenSurf] Fill: MakeFilling failed ({err}) — falling "
+                "back to the plate solver\n")
+
+        # fallback: GeomPlate with sampled continuation rows
+        edges = list(wire.Edges)
+        support_rows = []
+        for e, face, o in constrained:
+            support_rows.extend(_support_rows(e, face, o))
 
         plane = _fit_plane(wire.discretize(Number=100))
         builder = GeomPlate.BuildPlateSurface(plane)
-        for e in wire.Edges:
+        for e in edges:
             builder.add(GeomPlate.CurveConstraint(
                 e.Curve.trim(e.FirstParameter, e.LastParameter), 0))
         for row in support_rows:
             builder.add(GeomPlate.CurveConstraint(
                 row.trim(row.FirstParameter, row.LastParameter), 0))
-
-        if obj.PassingPoints:
-            for shape in resolve_linksublist(obj.PassingPoints):
-                if shape.ShapeType != "Vertex":
-                    raise GSFeatureError(
-                        "passing points must be vertex picks")
-                builder.add(GeomPlate.PointConstraint(
-                    App.Vector(shape.Point), 0))
+        for p in points:
+            builder.add(GeomPlate.PointConstraint(p, 0))
 
         try:
             builder.perform()

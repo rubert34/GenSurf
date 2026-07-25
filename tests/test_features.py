@@ -3538,3 +3538,76 @@ def test_curve_offset_3d_reversed_edge_wire(doc):
     assert all(abs(abs(y) - 2.0) < 1e-6 for y in ys), \
         "offset flipped sides on the reversed edge"
     assert math.isclose(co.Shape.Length, 10.0, rel_tol=1e-3)
+
+
+# -- Healing --------------------------------------------------------------
+
+
+def test_healing_sews_and_simplifies(doc):
+    from gensurf.features import make_healing
+    # two coplanar faces sharing an edge exactly
+    fa = doc.addObject("Part::Feature", "HeA")
+    fa.Shape = Part.makeLine(
+        App.Vector(0, 0, 0), App.Vector(10, 0, 0)).extrude(
+        App.Vector(0, 8, 0))
+    fb = doc.addObject("Part::Feature", "HeB")
+    fb.Shape = Part.makeLine(
+        App.Vector(10, 0, 0), App.Vector(20, 0, 0)).extrude(
+        App.Vector(0, 8, 0))
+    he = make_healing(doc)
+    he.Elements = [(fa, ""), (fb, "")]
+    assert_recomputes(doc)
+    assert len(he.Shape.Shells) == 1  # sewn into one shell
+    assert len(he.Shape.Faces) == 2
+
+    he.Simplify = True
+    assert_recomputes(doc)
+    assert len(he.Shape.Faces) == 1  # coplanar faces merged
+    assert math.isclose(he.Shape.Area, 160.0, rel_tol=1e-9)
+
+
+def test_split_fuzzy_tolerance(doc):
+    from gensurf.features import make_split
+    support = _support_face(doc)
+    # cutter that misses full traversal by a hair without fuzzy
+    cutter = doc.addObject("Part::Feature", "FzC")
+    cutter.Shape = Part.makeLine(
+        App.Vector(10, -0.0005, -5), App.Vector(10, 20.0005, -5)).extrude(
+        App.Vector(0, 0, 10))
+    sp = make_split(doc)
+    sp.Element = (support, ["Face1"])
+    sp.Cutter = (cutter, ["Face1"])
+    sp.Tolerance = "0.01 mm"
+    assert_recomputes(doc)  # must split cleanly with fuzzy
+    assert math.isclose(sp.Shape.Area, 200.0, rel_tol=1e-3)
+
+
+# -- CurvatureComb --------------------------------------------------------
+
+
+def test_curvature_comb_on_arc(doc):
+    from gensurf.features import make_curvature_comb
+    arc_obj = doc.addObject("Part::Feature", "CmbA")
+    arc_obj.Shape = Part.ArcOfCircle(
+        Part.Circle(App.Vector(0, 0, 0), App.Vector(0, 0, 1), 10),
+        0, math.pi).toShape()
+    cb = make_curvature_comb(doc)
+    cb.Curve = (arc_obj, "")
+    cb.Scale = 20.0   # teeth length = k * scale = 2.0
+    assert_recomputes(doc)
+    # constant curvature: every tooth is 2 mm, pointing outward
+    teeth = [e for e in cb.Shape.Edges
+             if abs(e.Length - 2.0) < 1e-6]
+    assert len(teeth) >= 40
+    # tooth tips lie on radius 12 (normal points to center, negated -> out)
+    tip_r = [max(v.Point.Length for v in e.Vertexes) for e in teeth]
+    assert all(abs(r - 12.0) < 1e-6 for r in tip_r)
+
+
+def test_curvature_comb_rejects_straight_line(doc):
+    from gensurf.features import make_curvature_comb
+    ln = _line_edge(doc, (0, 0, 0), (10, 0, 0), name="CmbL")
+    cb = make_curvature_comb(doc)
+    cb.Curve = (ln, "")
+    with pytest.raises(GSFeatureError):
+        cb.Proxy.execute(cb)

@@ -56,11 +56,16 @@ class _FeatureCommand:
         from gensurf.features import factory
         from gensurf.ui.view_provider import open_feature_dialog
 
+        if Gui.Control.activeDialog():
+            App.Console.PrintWarning(
+                "[GenSurf] close the active task dialog first\n")
+            return
         doc = App.ActiveDocument
+        # the dialog owns this transaction: OK commits, Cancel aborts
+        # (which removes the freshly created feature in one step)
         doc.openTransaction(self.menu_text)
         obj = factory(self.type_id)(doc)
         self._prefill_from_selection(obj)
-        doc.commitTransaction()
         doc.recompute()
         open_feature_dialog(obj, created=True)
 
@@ -163,6 +168,8 @@ class _ReloadWorkbench:
         import gensurf.features.sweep_circle
         import gensurf.features.sweep_conic
         import gensurf.features.close_surface
+        import gensurf.features.healing
+        import gensurf.features.curvature_comb
         import gensurf.features
         import gensurf.containers
         import gensurf.ui.view_provider
@@ -217,6 +224,8 @@ class _ReloadWorkbench:
             gensurf.features.sweep_circle,
             gensurf.features.sweep_conic,
             gensurf.features.close_surface,
+            gensurf.features.healing,
+            gensurf.features.curvature_comb,
             gensurf.features,
             gensurf.ui.view_provider,
             gensurf.ui.task_panels,
@@ -392,6 +401,14 @@ _COMMANDS = {
         "GenSurf::CloseSurface", "Close Surface",
         "Turn a closed set of surfaces into a solid",
         "GenSurf_CloseSurface.svg"),
+    "GenSurf_Op_Healing": _FeatureCommand(
+        "GenSurf::Healing", "Healing",
+        "Repair surfaces: geometry fixes, small edges, simplification",
+        "GenSurf_Healing.svg"),
+    "GenSurf_An_Comb": _FeatureCommand(
+        "GenSurf::CurvatureComb", "Curvature Comb",
+        "Porcupine curvature analysis of a curve",
+        "GenSurf_Comb.svg"),
 }
 
 
@@ -482,7 +499,8 @@ TOOLBARS = (
         "GenSurf_Op_Join", "GenSurf_Grp_SplitTrim",
         "GenSurf_Grp_Extracts", "GenSurf_Grp_Fillets",
         "GenSurf_Grp_Transforms", "GenSurf_Op_Extend",
-        "GenSurf_Op_CloseSurface"]),
+        "GenSurf_Op_CloseSurface", "GenSurf_Op_Healing"]),
+    ("GS Analysis", ["GenSurf_An_Comb"]),
     ("GS Dev", ["GenSurf_Dev_Reload"]),
 )
 

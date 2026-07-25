@@ -205,43 +205,16 @@ class FeatureTaskPanel:
         layout.addWidget(self.hint)
         layout.addStretch()
 
-        # live preview edits the object directly — snapshot the state of
-        # an EXISTING feature so Cancel can restore it faithfully
-        self._snapshot = None if created else self._take_snapshot()
+        # the whole dialog session is ONE document transaction: the
+        # creating command opens it for new features; for edits of an
+        # existing feature the panel opens its own. OK commits, Cancel
+        # aborts — live preview becomes fully undoable / revertible.
+        if not created:
+            obj.Document.openTransaction(f"Edit {obj.Label}")
 
         Gui.Selection.clearSelection()
         Gui.Selection.addObserver(self)
         self._arm_first_empty()
-
-    # -- cancel-safety snapshot -------------------------------------------
-
-    def _take_snapshot(self):
-        snap = {}
-        for ptype, name, _group, _doc, _default in \
-                getattr(self.obj.Proxy, "PROPERTIES", ()):
-            if not hasattr(self.obj, name):
-                continue
-            v = getattr(self.obj, name)
-            if ptype == "App::PropertyLinkSub":
-                snap[name] = (v[0], list(v[1])) if v else None
-            elif ptype == "App::PropertyLinkSubList":
-                snap[name] = [(o, list(ss)) for o, ss in (v or [])]
-            elif ptype in _LENGTH_TYPES + ("App::PropertyAngle",):
-                snap[name] = str(v)
-            elif ptype == "App::PropertyVector":
-                snap[name] = App.Vector(v)
-            elif ptype.endswith("List"):
-                snap[name] = list(v or [])
-            else:
-                snap[name] = v
-        return snap
-
-    def _restore_snapshot(self):
-        for name, v in (self._snapshot or {}).items():
-            try:
-                setattr(self.obj, name, v)
-            except Exception:
-                pass
 
     # -- slot management --------------------------------------------------
 
@@ -373,20 +346,19 @@ class FeatureTaskPanel:
 
     def accept(self):
         self._cleanup()
-        self.obj.Document.recompute()
+        doc = self.obj.Document
+        doc.recompute()
         self._hide_consumed()
+        doc.commitTransaction()
         Gui.Control.closeDialog()
         return True
 
     def reject(self):
         self._cleanup()
         doc = self.obj.Document
-        if self.created:
-            name = self.obj.Name
-            doc.removeObject(name)
-        else:
-            # undo everything live preview applied during the session
-            self._restore_snapshot()
+        # aborting removes a just-created feature AND reverts every
+        # live-preview edit of an existing one
+        doc.abortTransaction()
         doc.recompute()
         Gui.Control.closeDialog()
         return True

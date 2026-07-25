@@ -33,6 +33,9 @@ class Trim(GSFeature):
          "Keep the other side of the first element", False),
         ("App::PropertyBool", "KeepOtherSide2", "Trim",
          "Keep the other side of the second element", False),
+        ("App::PropertyDistance", "Tolerance", "Trim",
+         "Extra boolean tolerance for near-touching geometry (fuzzy)",
+         "0 mm"),
     )
 
     @staticmethod
@@ -73,8 +76,10 @@ class Trim(GSFeature):
         cutter_for_1 = cutter_shape_for(obj.Element2, e1)
         cutter_for_2 = cutter_shape_for(obj.Element1, e2)
 
-        kept1 = split_keep(e1, cutter_for_1, obj.KeepOtherSide1)
-        kept2 = split_keep(e2, cutter_for_2, obj.KeepOtherSide2)
+        fuzzy = getattr(obj, "Tolerance", None)
+        fuzzy = fuzzy.getValueAs("mm").Value if fuzzy else 0.0
+        kept1 = split_keep(e1, cutter_for_1, obj.KeepOtherSide1, fuzzy)
+        kept2 = split_keep(e2, cutter_for_2, obj.KeepOtherSide2, fuzzy)
         return self._join(kept1 + kept2)
 
 

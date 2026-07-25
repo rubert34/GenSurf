@@ -6,7 +6,7 @@ headless (freecadcmd / pytest), with no FreeCADGui dependency.
 
 import os
 
-__version__ = "0.27.0"
+__version__ = "0.28.0"
 
 # Root of the addon (the folder containing package.xml).
 ADDON_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
