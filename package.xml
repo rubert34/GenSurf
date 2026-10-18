@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>GenSurf</name>
+  <description>A generative surfacing workbench: construction sets, construction curves and parametric surfaces, with continuity control.</description>
+  <version>0.28.0</version>
+  <date>2026-07-23</date>
+  <maintainer email="rubert34@users.noreply.github.com">rubert34</maintainer>
+  <license file="LICENSE">LGPL-2.1-or-later</license>
+  <content>
+    <workbench>
+      <classname>GenerativeSurfacesWorkbench</classname>
+      <subdirectory>./</subdirectory>
+      <icon>resources/icons/GenSurf_Workbench.svg</icon>
+    </workbench>
+  </content>
+  <freecadmin>1.0</freecadmin>
+</package>

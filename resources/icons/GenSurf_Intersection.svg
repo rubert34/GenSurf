@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<defs>
+<linearGradient id="bV" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="0" stop-color="#71b2f8"/><stop offset="1" stop-color="#16437e"/></linearGradient>
+<linearGradient id="bV2" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="0" stop-color="#a8cef8"/><stop offset="1" stop-color="#2f6bb8"/></linearGradient>
+<linearGradient id="bD" x1="0" y1="0" x2="1" y2="1">
+ <stop offset="0" stop-color="#71b2f8"/><stop offset="1" stop-color="#16437e"/></linearGradient>
+<linearGradient id="gV" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="0" stop-color="#fce94f"/><stop offset="1" stop-color="#e08e00"/></linearGradient>
+<linearGradient id="gnV" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="0" stop-color="#8ae234"/><stop offset="1" stop-color="#4e9a06"/></linearGradient>
+<linearGradient id="oV" x1="0" y1="0" x2="0" y2="1">
+ <stop offset="0" stop-color="#fcaf3e"/><stop offset="1" stop-color="#ce5c00"/></linearGradient>
+<radialGradient id="sph" cx="0.35" cy="0.3" r="0.9">
+ <stop offset="0" stop-color="#cfe6ff"/><stop offset="0.55" stop-color="#5b9de0"/>
+ <stop offset="1" stop-color="#123a70"/></radialGradient>
+<radialGradient id="gsph" cx="0.35" cy="0.3" r="0.9">
+ <stop offset="0" stop-color="#faff2b"/><stop offset="1" stop-color="#e08e00"/></radialGradient>
+</defs>
+<path d="M2 36 L 24 14 L 62 24 L 40 46 Z" fill="url(#gV)" stroke="#5c3a04" stroke-width="2.4" stroke-linejoin="round" /><path d="M22 2 L 42 8 L 34 62 L 14 56 Z" fill="url(#bV)" stroke="#0a1c38" stroke-width="2.4" stroke-linejoin="round" fill-opacity="0.92"/><path d="M30 22 L 36 40" fill="none" stroke="#7c0000" stroke-width="7.0" stroke-linecap="round"/>
+<path d="M30 22 L 36 40" fill="none" stroke="#ef2929" stroke-width="4.4" stroke-linecap="round"/><circle cx="33" cy="31" r="4.5" fill="#ef2929" stroke="#7c0000" stroke-width="2"/>
+</svg>
