@@ -13,6 +13,37 @@ import FreeCAD as App
 import FreeCADGui as Gui
 
 _observer = None
+_restore_observer = None
+
+
+class ViewProviderRepair:
+    """When a document becomes active (opening one activates it), give
+    its GenSurf features their view providers (tree icon, double-click
+    opens the task panel) even if the file was saved without GUI data.
+    FreeCAD 1.1 does not call slotFinishRestoreDocument on Python
+    observers, hence activation. Deferred one event-loop turn so loading
+    has finished; repeated activations are cheap no-ops."""
+
+    def slotActivateDocument(self, doc):
+        from PySide import QtCore
+        name = doc.Name
+        QtCore.QTimer.singleShot(0, lambda: self._repair(name))
+
+    @staticmethod
+    def _repair(name):
+        if name not in App.listDocuments():
+            return
+        from gensurf.ui.view_provider import ensure_view_providers
+        ensure_view_providers(App.getDocument(name))
+
+
+def install_restore_repair():
+    """Installed when FreeCAD loads the workbench list, so documents
+    opened before GenSurf is first activated are repaired too."""
+    global _restore_observer
+    if _restore_observer is None:
+        _restore_observer = ViewProviderRepair()
+        App.addDocumentObserver(_restore_observer)
 
 
 class SketchCapture:

@@ -30,13 +30,20 @@ class GenerativeSurfacesWorkbench(FreeCADGui.Workbench):
             self.appendMenu(["&GenSurf", title], items)
 
     def Activated(self):
-        # Upgrade objects created before the view-provider layer existed.
+        # Give GenSurf features in already open documents their view
+        # providers (files saved without GUI data restore without them).
         import FreeCAD as App
         from gensurf.ui.view_provider import ensure_view_providers
-        ensure_view_providers(App.ActiveDocument)
+        for name in App.listDocuments():
+            ensure_view_providers(App.getDocument(name))
 
     def GetClassName(self):
         return "Gui::PythonWorkbench"
 
 
 FreeCADGui.addWorkbench(GenerativeSurfacesWorkbench())
+
+# documents opened later, whichever workbench is active, get GenSurf's
+# view providers for their GenSurf features (lightweight observer)
+from gensurf.ui import observers as _observers  # noqa: E402
+_observers.install_restore_repair()

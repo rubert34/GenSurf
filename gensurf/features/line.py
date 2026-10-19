@@ -39,7 +39,7 @@ def _vertex_point(link, what):
 
 class Line(GSFeature):
     TYPE_ID = "GenSurf::Line"
-    REQUIRED_LINKS = ()
+    REQUIRED_LINKS = ("Point1",)  # every line type starts there
     INPUT_SLOTS = (
         ("Point1", "Start point", ("Vertex",), True),
         ("Point2", "End point (Point-Point)", ("Vertex",), True),

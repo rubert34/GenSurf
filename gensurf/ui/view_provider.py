@@ -26,6 +26,9 @@ _ICON_BY_TYPE = {}
 
 class GSViewProvider:
     def __init__(self, vobj):
+        # attach() is not called when the proxy is set on an existing view
+        # object (repair of files saved without GUI data): keep it here too
+        self.vobj = vobj
         vobj.Proxy = self
 
     def attach(self, vobj):
@@ -90,8 +93,9 @@ def open_feature_dialog(obj, created=False):
 
 
 def ensure_view_providers(doc):
-    """Attach GSViewProvider to GS features that lack one (e.g. objects
-    created before the view-provider layer existed)."""
+    """Attach GSViewProvider to GenSurf features that lack one: documents
+    saved without GUI data (scripts, tests) or before the view-provider
+    layer existed restore with an empty proxy (None or 0)."""
     if not App.GuiUp or doc is None:
         return
     from gensurf.features import FEATURES
@@ -99,5 +103,6 @@ def ensure_view_providers(doc):
         gstype = getattr(obj, "GSType", "")
         if gstype in FEATURES:
             vo = getattr(obj, "ViewObject", None)
-            if vo is not None and getattr(vo, "Proxy", None) is None:
+            if vo is not None and not hasattr(
+                    getattr(vo, "Proxy", None), "getIcon"):
                 GSViewProvider(vo)
