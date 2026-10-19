@@ -13,7 +13,8 @@ import FreeCADGui as Gui
 from PySide import QtWidgets
 
 from gensurf.features.extract import PROPAGATION
-from gensurf.ui.task_panels import build_params_box, error_text
+from gensurf.ui.task_panels import (build_params_box, error_text,
+                                    is_apply, standard_buttons)
 
 def _pick_label(linked, sub):
     return f"{linked.Label}.{sub}" if sub else linked.Label
@@ -191,12 +192,10 @@ class ExtractTaskPanel:
     # -- dialog lifecycle --------------------------------------------------
 
     def getStandardButtons(self):
-        return int(QtWidgets.QDialogButtonBox.Ok
-                   | QtWidgets.QDialogButtonBox.Apply
-                   | QtWidgets.QDialogButtonBox.Cancel)
+        return standard_buttons()
 
     def clicked(self, button):
-        if int(button) == int(QtWidgets.QDialogButtonBox.Apply):
+        if is_apply(button):
             self._recompute()
 
     def _cleanup(self):

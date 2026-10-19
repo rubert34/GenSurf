@@ -17,7 +17,8 @@ import FreeCADGui as Gui
 from PySide import QtWidgets, QtCore
 
 from gensurf.features.base import CONTINUITY
-from gensurf.ui.task_panels import build_params_box, error_text
+from gensurf.ui.task_panels import (build_params_box, error_text,
+                                    is_apply, standard_buttons)
 
 def _pick_label(linked, subs):
     sub = subs[0] if subs else ""
@@ -335,12 +336,10 @@ class LoftTaskPanel:
     # -- dialog lifecycle --------------------------------------------------
 
     def getStandardButtons(self):
-        return int(QtWidgets.QDialogButtonBox.Ok
-                   | QtWidgets.QDialogButtonBox.Apply
-                   | QtWidgets.QDialogButtonBox.Cancel)
+        return standard_buttons()
 
     def clicked(self, button):
-        if int(button) == int(QtWidgets.QDialogButtonBox.Apply):
+        if is_apply(button):
             self._recompute()
 
     def _cleanup(self):

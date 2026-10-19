@@ -70,6 +70,9 @@ option values and expressions), and the objects recompute identically.
   mode matches the support's curvature across the edge (0.18 %).
 
 ### Fixed
+- Task panels did not open on FreeCAD 1.1: PySide6 Qt enums no longer
+  convert with `int()`, so the OK / Apply / Cancel buttons failed for
+  every operator. A regression test now checks the conversion.
 - A Blend saved before 0.25 (no `Borders` property) no longer changes
   shape on recompute: it restores with `Borders = Natural`, the
   behaviour it was built with.

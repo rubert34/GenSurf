@@ -19,6 +19,8 @@ import FreeCAD as App
 import FreeCADGui as Gui
 from PySide import QtWidgets
 
+from gensurf.ui.qt_compat import is_apply, standard_buttons  # noqa: F401
+
 _LENGTH_TYPES = ("App::PropertyDistance", "App::PropertyLength")
 
 
@@ -320,12 +322,10 @@ class FeatureTaskPanel:
     # -- dialog lifecycle --------------------------------------------------
 
     def getStandardButtons(self):
-        return int(QtWidgets.QDialogButtonBox.Ok
-                   | QtWidgets.QDialogButtonBox.Apply
-                   | QtWidgets.QDialogButtonBox.Cancel)
+        return standard_buttons()
 
     def clicked(self, button):
-        if int(button) == int(QtWidgets.QDialogButtonBox.Apply):
+        if is_apply(button):
             self.obj.Document.recompute()
             self._arm_first_empty()
 
