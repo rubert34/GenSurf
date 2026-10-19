@@ -432,6 +432,56 @@ def test_blend_curvature_builds_and_hugs_harder(doc):
     assert _blend_z_at(blend, 5, 0.5) < 0.05
 
 
+
+def _cross_curvature_vector(face, p, edge_dir):
+    """Normal-curvature vector of a face at p, in the tangent direction
+    across an edge running along edge_dir (Euler's formula)."""
+    s = face.Surface
+    u, v = s.parameter(p)
+    n = App.Vector(s.normal(u, v))
+    n.normalize()
+    kmax, kmin = s.curvature(u, v, "Max"), s.curvature(u, v, "Min")
+    dmax = App.Vector(s.curvatureDirections(u, v)[0])
+    dmax.normalize()
+    d = n.cross(App.Vector(edge_dir))
+    d.normalize()
+    c = d.dot(dmax)
+    return n * (kmax * c * c + kmin * (1 - c * c)), n
+
+
+@pytest.mark.parametrize("continuity, curvature_gap", [
+    ("G1 Tangent", (0.049, 0.051)),     # flat at the edge: full gap
+    ("G2 Curvature", (0.0, 0.0005)),    # matches the cylinder (1/20)
+])
+def test_blend_g2_matches_support_curvature(doc, continuity,
+                                            curvature_gap):
+    """Measured, not assumed: across the edge it leaves, a G2 blend has
+    the support's normal curvature; a G1 blend only its tangent plane."""
+    from gensurf.features import make_blend_surface
+    cyl = doc.addObject("Part::Feature", "Cyl")
+    cyl.Shape = Part.makeCylinder(20, 30, App.Vector(0, 0, 0),
+                                  App.Vector(0, 0, 1), 90).Faces[0]
+    edge = next(i for i, e in enumerate(cyl.Shape.Edges, 1)
+                if isinstance(e.Curve, Part.Line)
+                and abs(e.Vertexes[0].Point.y - 20) < 1e-9)
+    far = _line_edge(doc, (-30, 0, 0), (-30, 0, 30), name="Far")
+    blend = make_blend_surface(doc)
+    blend.Curve1 = (cyl, [f"Edge{edge}"])
+    blend.Support1 = (cyl, ["Face1"])
+    blend.Curve2 = (far, [])
+    blend.Continuity1 = continuity
+    blend.Samples = 40
+    assert_recomputes(doc)
+
+    lo, hi = curvature_gap
+    for z in (5.0, 15.0, 25.0):
+        p = App.Vector(0, 20, z)
+        kb, nb = _cross_curvature_vector(blend.Shape.Faces[0], p, (0, 0, 1))
+        kc, nc = _cross_curvature_vector(cyl.Shape.Faces[0], p, (0, 0, 1))
+        angle = math.degrees(nb.getAngle(nc))
+        assert min(angle, 180 - angle) < 1e-3  # G1 either way
+        assert lo <= (kb - kc).Length <= hi
+
 def test_blend_tangency_without_support_errors(doc):
     from gensurf.features import make_blend_surface
     e1, _supA, e2, _supB = _blend_setup(doc)
