@@ -59,6 +59,25 @@ inputs are complete, and recomputes parametrically when upstream
 geometry changes. The terms GenSurf uses are defined in
 [docs/glossary.md](docs/glossary.md).
 
+## Screenshots
+
+The demo model: construction sets in the tree, the task toolbars, and a
+G2 Blend between two extruded surfaces.
+
+![GenSurf workbench with the demo model](docs/images/gensurf-overview.png)
+
+Editing the Blend: picked curves and supports, G2 continuity on both
+sides, tension.
+
+![Blend task panel](docs/images/gensurf-blend-panel.png)
+
+Curvature Comb on the two character curves the surfaces are built from.
+
+![Curvature combs on the demo's character curves](docs/images/gensurf-curvature-comb.png)
+
+The task panels shown are the current ones; a redesigned panel layout is
+in progress. `tools/capture_screenshots.py` retakes these images.
+
 ## Installation
 
 **Addon Manager (custom repository):** Edit → Preferences → Addon
