@@ -22,6 +22,13 @@ from PySide import QtWidgets
 _LENGTH_TYPES = ("App::PropertyDistance", "App::PropertyLength")
 
 
+def error_text(err):
+    """Message for the panel's hint line; GenSurf issues also name the
+    inputs at fault."""
+    describe = getattr(err, "describe", None)
+    return describe() if describe else str(err)
+
+
 def _camel_label(name):
     """LengthFwd -> 'Length Fwd'."""
     out = []
@@ -50,7 +57,7 @@ def make_param_widget(obj, ptype, name, error_cb):
                 setter(*args)
                 obj.Document.recompute()
             except Exception as err:
-                error_cb(str(err))
+                error_cb(error_text(err))
         return _apply
 
     if ptype in _LENGTH_TYPES:
@@ -302,7 +309,7 @@ class FeatureTaskPanel:
                 setattr(self.obj, self.armed,
                         (picked, [sub] if sub else []))
         except Exception as err:
-            self.hint.setText(str(err))
+            self.hint.setText(error_text(err))
             return
         field, _btn = self._widgets[self.armed]
         field.setText(self._describe(self.armed))

@@ -17,7 +17,7 @@ import FreeCADGui as Gui
 from PySide import QtWidgets, QtCore
 
 from gensurf.features.base import CONTINUITY
-from gensurf.ui.task_panels import build_params_box
+from gensurf.ui.task_panels import build_params_box, error_text
 
 def _pick_label(linked, subs):
     sub = subs[0] if subs else ""
@@ -191,7 +191,7 @@ class LoftTaskPanel:
         try:
             self.obj.Document.recompute()
         except Exception as err:
-            self.hint.setText(str(err))
+            self.hint.setText(error_text(err))
 
     def _set_row_cont(self, prop, table, row, value):
         conts = list(getattr(self.obj, prop) or [])
@@ -256,7 +256,7 @@ class LoftTaskPanel:
         try:
             self._handle_pick(picked, sub)
         except Exception as err:
-            self.hint.setText(str(err))
+            self.hint.setText(error_text(err))
 
     @staticmethod
     def _shape_of(picked, sub):

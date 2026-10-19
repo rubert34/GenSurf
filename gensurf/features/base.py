@@ -30,8 +30,55 @@ ALGO_PROPERTY = "GenSurfAlgo"
 CONTINUITY = ("G0 Position", "G1 Tangent", "G2 Curvature")
 
 
-class GSFeatureError(RuntimeError):
-    """Raised by build() when inputs are missing or geometry fails."""
+#: issue severities: Error = no geometry; Warning = geometry produced but
+#: out of tolerance or with a constraint dropped; Info = for the record
+ERROR, WARNING, INFO = "Error", "Warning", "Info"
+
+
+class GenSurfError(RuntimeError):
+    """A problem with a feature that the user can act on.
+
+    ``GenSurfError(key, message, faulty_properties, sub_elements,
+    severity)``:
+
+    * key — a stable identifier ("input-missing", "rails-do-not-touch"…)
+      for the UI and for tests; messages may be reworded, keys may not;
+    * faulty_properties — names of the inputs or fields at fault, which
+      the task panel can highlight;
+    * sub_elements — ``(object name, sub-element name)`` pairs at fault,
+      which can be highlighted in 3D;
+    * severity — ERROR, WARNING or INFO.
+
+    The one-argument form ``GenSurfError(message)`` (key "generic") keeps
+    every ``GSFeatureError("...")`` call working. Raised from build(), an
+    issue always means no geometry; non-fatal issues are passed to
+    ``GSFeature.report`` instead.
+    """
+
+    def __init__(self, key, message=None, faulty_properties=(),
+                 sub_elements=(), severity=ERROR):
+        if message is None:
+            key, message = "generic", key
+        super().__init__(message)
+        self.key = key
+        self.message = message
+        self.faulty_properties = tuple(faulty_properties)
+        self.sub_elements = tuple(tuple(s) for s in sub_elements)
+        self.severity = severity
+
+    def __str__(self):
+        return self.message
+
+    def describe(self):
+        """One line for the console and the task panel."""
+        text = self.message
+        if self.faulty_properties:
+            text += f" [{', '.join(self.faulty_properties)}]"
+        return text
+
+
+#: former name, kept so existing code and scripts keep working
+GSFeatureError = GenSurfError
 
 
 class GSFeature:
@@ -129,26 +176,63 @@ class GSFeature:
 
     # -- FreeCAD lifecycle ------------------------------------------------
 
+    def report(self, obj, issue):
+        """Record a non-fatal issue (a GenSurfError with severity WARNING
+        or INFO) while building; execute() reports it afterwards."""
+        self._issue_list().append(issue)
+
+    def issues(self):
+        """Issues found by the last recompute, most serious first."""
+        order = {ERROR: 0, WARNING: 1, INFO: 2}
+        return sorted(self._issue_list(), key=lambda i: order[i.severity])
+
+    def _issue_list(self):
+        # proxies restored from a document skip __init__: create lazily
+        if not hasattr(self, "_issues"):
+            self._issues = []
+        return self._issues
+
+    @staticmethod
+    def _print(obj, issue):
+        line = f"[GenSurf] {obj.Name}: {issue.describe()}\n"
+        if issue.severity == ERROR:
+            App.Console.PrintError(line)
+        elif issue.severity == WARNING:
+            App.Console.PrintWarning(line)
+        else:
+            App.Console.PrintMessage(line)
+
     def execute(self, obj):
+        self._issues = []
         missing = [n for n in self.REQUIRED_LINKS if not getattr(obj, n, None)]
         if missing:
-            App.Console.PrintWarning(
-                f"[GenSurf] {obj.Name}: waiting for input(s): "
-                f"{', '.join(missing)}\n")
+            issue = GenSurfError(
+                "input-missing",
+                f"waiting for input(s): {', '.join(missing)}",
+                faulty_properties=missing, severity=INFO)
+            self._issues.append(issue)
+            self._print(obj, issue)
             return  # incomplete, not broken — keep an empty shape quietly
 
         was_empty = obj.Shape.isNull() if getattr(obj, "Shape", None) else True
         try:
             shape = self.build(obj)
-        except GSFeatureError as err:
-            App.Console.PrintError(f"[GenSurf] {obj.Name}: {err}\n")
+        except GenSurfError as err:
+            err.severity = ERROR  # raised = no geometry
+            self._issues.append(err)
+            self._print(obj, err)
             raise
+        for issue in list(self._issues):
+            self._print(obj, issue)
         if shape is None:
             return  # feature idles (incomplete inputs signalled by build)
         if not shape.isValid():
             shape.fix(1e-7, 1e-7, 1e-7)
             if not shape.isValid():
-                raise GSFeatureError(f"{obj.Name}: invalid shape produced")
+                err = GenSurfError("invalid-shape",
+                                   f"{obj.Name}: invalid shape produced")
+                self._issues.append(err)
+                raise err
         obj.Shape = shape
         # First successful build: make sure the result is actually shown,
         # even if the object was toggled invisible while it had no shape.

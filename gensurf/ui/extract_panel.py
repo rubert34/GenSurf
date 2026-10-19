@@ -13,7 +13,7 @@ import FreeCADGui as Gui
 from PySide import QtWidgets
 
 from gensurf.features.extract import PROPAGATION
-from gensurf.ui.task_panels import build_params_box
+from gensurf.ui.task_panels import build_params_box, error_text
 
 def _pick_label(linked, sub):
     return f"{linked.Label}.{sub}" if sub else linked.Label
@@ -122,7 +122,7 @@ class ExtractTaskPanel:
         try:
             self.obj.Document.recompute()
         except Exception as err:
-            self.hint.setText(str(err))
+            self.hint.setText(error_text(err))
 
     def _set_row_int(self, prop, row, value, default):
         vals = list(getattr(self.obj, prop) or [])

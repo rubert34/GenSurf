@@ -4,7 +4,8 @@ Registration lines (one per feature file):
 """
 
 from .registry import FEATURES, register, factory  # noqa: F401
-from .base import GSFeature, GSFeatureError, make_feature  # noqa: F401
+from .base import (GSFeature, GenSurfError, GSFeatureError,  # noqa: F401
+                   ERROR, WARNING, INFO, make_feature)
 
 from . import datum_plane  # noqa: F401
 from . import projected_curve  # noqa: F401
