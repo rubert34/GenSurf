@@ -37,7 +37,7 @@ _VENDORS = [
     "funce3q", "mj3q", "zbv3q", "pvzngeba", "vebapnq",
 ]
 # vendor names and abbreviations that are ordinary words in lower case
-_VENDORS_EXACT_CASE = ["AK", "CGP", "TFQ", "Fvyx"]
+_VENDORS_EXACT_CASE = ["AK", "CGP", "TFQ"]
 # terms GenSurf replaced; spaces also match "_", "-" or nothing
 _TERMS = [
     "trbzrgevpny frg", "zhygv frpgvba", "fjrcg fhesnpr", "jbex bowrpg",
