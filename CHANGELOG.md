@@ -40,6 +40,8 @@ option values and expressions), and the objects recompute identically.
 - Docstrings, tooltips and the README describe GenSurf's own behaviour.
 - A feature that still waits for inputs logs an informational message
   instead of a warning.
+- README: problems are reported as GitHub issues (the forum thread it
+  mentioned was never linked).
 
 ### Added
 - Algorithm versioning: every feature has a hidden `GenSurfAlgo`

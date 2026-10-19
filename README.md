@@ -93,7 +93,8 @@ is skipped, so nothing is silently approximated.
 
 ## Reporting issues
 
-Please report problems in the project's FreeCAD forum thread, and
+Please report problems as
+[GitHub issues](https://github.com/rubert34/GenSurf/issues), and
 include three things: **what you were trying to achieve**, **what
 went wrong** (with a screenshot and, if possible, the .FCStd file),
 and **what you expected to happen**. That format makes issues
