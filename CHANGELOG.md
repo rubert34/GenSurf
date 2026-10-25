@@ -75,6 +75,12 @@ option values and expressions), and the objects recompute identically.
   mode matches the support's curvature across the edge (0.18 %).
 
 ### Fixed
+- Offset Curve 3D switched sides where the curve runs parallel to the
+  direction (for example a curve whose own plane contains the
+  direction), giving a kinked result. New objects keep one side and warn,
+  with a hint when the direction lies in the curve's plane. Existing
+  objects keep their geometry (algorithm version 1) but now warn, and
+  "Upgrade to current algorithm" applies the fix. Reported on the forum.
 - Documents saved without GUI data (scripts, tests, older files) showed
   generic tree icons, and double-clicking a GenSurf feature did not open
   its task panel: GenSurf's view providers are now attached whenever a

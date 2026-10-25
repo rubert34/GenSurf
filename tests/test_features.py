@@ -2544,6 +2544,77 @@ def test_offset_curve_3d_arc(doc):
         assert abs(math.hypot(p.x, p.y) - 7.0) < 1e-3  # grown arc
 
 
+
+def _fold_arc(doc):
+    """Arc in the plane x = 0 (radius 10, from 0 to 100 degrees), leaving
+    along -Y and turning down past -Z: with direction (0, 1, 1) its
+    tangent passes parallel to the direction at 45 degrees (reported on
+    the forum, October 2026). Asymmetric, so no sample lands exactly on
+    the parallel point."""
+    def at(deg):
+        a = math.radians(deg)
+        return App.Vector(0, -10 * math.sin(a), 10 * math.cos(a))
+    obj = doc.addObject("Part::Feature", "FoldArc")
+    obj.Shape = Part.Arc(at(0), at(50), at(100)).toShape()
+    return obj
+
+
+def _offset_xs(oc):
+    return [p.x for p in oc.Shape.Edges[0].discretize(60)]
+
+
+def test_offset_curve_3d_keeps_one_side_through_a_fold(doc):
+    from gensurf.features import make_offset_curve_3d
+    oc = make_offset_curve_3d(doc)
+    oc.Curve = (_fold_arc(doc), "")
+    oc.Direction = App.Vector(0, 1, 1)
+    oc.Offset = "5 mm"
+    assert_recomputes(doc)
+    xs = _offset_xs(oc)
+    assert all(abs(x - xs[0]) < 1e-6 for x in xs)  # one side throughout
+    assert abs(abs(xs[0]) - 5.0) < 1e-6
+    assert [i.key for i in oc.Proxy.issues()] == ["direction-in-curve-plane"]
+
+
+def test_offset_curve_3d_version_1_keeps_its_result_and_warns(doc):
+    from gensurf.features import make_offset_curve_3d
+    oc = make_offset_curve_3d(doc)
+    oc.GenSurfAlgo = 1  # as saved by earlier versions
+    oc.Curve = (_fold_arc(doc), "")
+    oc.Direction = App.Vector(0, 1, 1)
+    oc.Offset = "5 mm"
+    assert_recomputes(doc)
+    xs = _offset_xs(oc)
+    assert min(xs) < -4.9 and max(xs) > 4.9  # the old side switch
+    assert [i.key for i in oc.Proxy.issues()] == ["offset-side-flips"]
+
+    assert oc.Proxy.upgrade_algorithm(oc)
+    assert_recomputes(doc)
+    xs = _offset_xs(oc)
+    assert all(abs(x - xs[0]) < 1e-6 for x in xs)
+
+
+def test_offset_curve_3d_follows_a_real_turn_back_at_a_corner(doc):
+    """A reversal of the side at a corner between edges is a real turn
+    of the curve, not a fold: the offset follows it, without warning."""
+    from gensurf.features import make_offset_curve_3d
+    obj = doc.addObject("Part::Feature", "Hairpin")
+    obj.Shape = Part.Wire([
+        Part.makeLine(App.Vector(0, 0, 0), App.Vector(10, 0, 0)),
+        Part.makeLine(App.Vector(10, 0, 0), App.Vector(0, 2, 0))])
+    oc = make_offset_curve_3d(doc)
+    oc.Curve = (obj, "")
+    oc.Offset = "1 mm"  # default direction +Z: offset to the left
+    assert_recomputes(doc)
+    assert oc.Proxy.issues() == []
+    back = obj.Shape.Edges[1]
+    mid = back.valueAt((back.FirstParameter + back.LastParameter) / 2)
+    tangent = App.Vector(-10, 2, 0)
+    tangent.normalize()
+    left = App.Vector(0, 0, 1).cross(tangent)
+    dist, pairs, _info = oc.Shape.distToShape(Part.Vertex(mid + left))
+    assert dist < 1e-3  # the second leg's offset lies on its own left
+
 # -- Circle ---------------------------------------------------------------
 
 
