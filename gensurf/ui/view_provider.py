@@ -63,6 +63,65 @@ class GSViewProvider:
         return None
 
 
+class SetViewProvider:
+    """View provider of a construction set: its tree icon shows whether it
+    is the active set (where new features go), and its context menu
+    offers Set Active. Children are shown by FreeCAD's group handling."""
+
+    def __init__(self, vobj):
+        self.vobj = vobj  # see GSViewProvider.__init__
+        vobj.Proxy = self
+
+    def attach(self, vobj):
+        self.vobj = vobj
+
+    def getIcon(self):
+        active = getattr(self.vobj.Object, "ActiveSet", False)
+        name = "GenSurf_SetActive.svg" if active else \
+            "GenSurf_ConstructionSet.svg"
+        return os.path.join(ICON_DIR, name)
+
+    def updateData(self, obj, prop):
+        if prop == "ActiveSet":
+            refresh = getattr(self.vobj, "signalChangeIcon", None)
+            if refresh:
+                refresh()
+
+    def setupContextMenu(self, vobj, menu):
+        obj = vobj.Object
+        if getattr(obj, "ActiveSet", False):
+            action = menu.addAction("Set Inactive")
+            action.setToolTip("New features will go to the top level of "
+                              "the document")
+        else:
+            action = menu.addAction("Set Active")
+            action.setToolTip("New features will be inserted into this set")
+        action.triggered.connect(lambda: toggle_active_set(obj))
+
+    def dumps(self):
+        return None
+
+    def loads(self, state):
+        return None
+
+
+def toggle_active_set(obj):
+    """Set Active / Set Inactive: make a construction set the active one,
+    or switch it off if it already is (one undoable step)."""
+    from gensurf.containers import set_active_set, set_inactive
+    doc = obj.Document
+    doc.openTransaction("Set active construction set")
+    if obj.ActiveSet:
+        set_inactive(obj)
+        message = (f"{obj.Label} is inactive: new features go to the top "
+                   "level of the document")
+    else:
+        set_active_set(obj)
+        message = f"{obj.Label} is now the active set: new features go into it"
+    doc.commitTransaction()
+    App.Console.PrintMessage(f"[GenSurf] {message}\n")
+
+
 def upgrade_algorithm(obj):
     """Move a feature built with an older algorithm to the current one
     (one undoable step; the geometry may change)."""
@@ -93,16 +152,18 @@ def open_feature_dialog(obj, created=False):
 
 
 def ensure_view_providers(doc):
-    """Attach GSViewProvider to GenSurf features that lack one: documents
-    saved without GUI data (scripts, tests) or before the view-provider
-    layer existed restore with an empty proxy (None or 0)."""
+    """Attach GenSurf's view providers to features and construction sets
+    that lack one: documents saved without GUI data (scripts, tests) or
+    by earlier versions restore with an empty proxy (None or 0)."""
     if not App.GuiUp or doc is None:
         return
+    from gensurf.containers import is_set
     from gensurf.features import FEATURES
     for obj in doc.Objects:
-        gstype = getattr(obj, "GSType", "")
-        if gstype in FEATURES:
-            vo = getattr(obj, "ViewObject", None)
-            if vo is not None and not hasattr(
-                    getattr(vo, "Proxy", None), "getIcon"):
-                GSViewProvider(vo)
+        vo = getattr(obj, "ViewObject", None)
+        if vo is None or hasattr(getattr(vo, "Proxy", None), "getIcon"):
+            continue
+        if getattr(obj, "GSType", "") in FEATURES:
+            GSViewProvider(vo)
+        elif is_set(obj):
+            SetViewProvider(vo)

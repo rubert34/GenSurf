@@ -10,8 +10,8 @@ so.
 | Term | Meaning |
 |---|---|
 | **Construction Set** | A container in the model tree that groups related geometry: helper points, curves and planes apart from the surfaces built from them. Sets can be nested. An *ordered* set keeps its children as a linear history. |
-| **Active set** | The construction set that receives every newly created feature (and new sketches). There is exactly one per document. |
-| **Set Active** | The command that makes the selected construction set the active one. |
+| **Active set** | The construction set that receives every newly created feature (and new sketches). There is at most one per document; with none, new features go to the top level of the document. A set is created and made active automatically only for the first GenSurf feature of a document (no other GenSurf feature present, no active set); after that GenSurf never creates one by itself. The active set's tree icon carries a check mark. |
+| **Set Active / Set Inactive** | Right-click a construction set (or use the toolbar button) to make it the active one, or, if it already is, to switch it off. |
 | **Operator** | One kind of GenSurf feature (Loft, Fill, Split …), created from a toolbar command. |
 | **Feature** | One parametric object made by an operator. It recomputes when its inputs change. |
 | **Input** / **role** | A slot of an operator that takes picked geometry, such as *Profile*, *Rail 1* or *Support*. |

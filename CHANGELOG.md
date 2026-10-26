@@ -44,6 +44,10 @@ option values and expressions), and the objects recompute identically.
   mentioned was never linked).
 
 ### Added
+- Set Active / Set Inactive on the right-click menu of every construction
+  set (and as a toggle on the Sets toolbar). The active set's tree icon
+  carries a check mark. With no active set, new features go to the top
+  level of the document.
 - Algorithm versioning: every feature has a hidden `GenSurfAlgo`
   version. When an operator's mathematics changes, existing objects keep
   their old behaviour; "Upgrade to current algorithm" (context menu,
@@ -75,6 +79,12 @@ option values and expressions), and the objects recompute identically.
   mode matches the support's curvature across the edge (0.18 %).
 
 ### Fixed
+- GenSurf created a new construction set whenever there was no active set,
+  for example after the user deleted every set. Now a set is created only
+  for the first GenSurf feature of a document (no other GenSurf feature
+  present and no active set); otherwise new features go into the active
+  set, or to the top level if none is active. The report view explains the
+  automatic set when it is created.
 - Offset Curve 3D switched sides where the curve runs parallel to the
   direction (for example a curve whose own plane contains the
   direction), giving a kinked result. New objects keep one side and warn,

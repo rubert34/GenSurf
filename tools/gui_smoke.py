@@ -142,26 +142,54 @@ def construction_sets():
     doc = App.ActiveDocument
     commands._COMMANDS["GenSurf_ConstructionSet"].Activated()
     first = get_active_set(doc)
-    second = make_construction_set(doc, "SmokeSet")
-    Gui.Selection.clearSelection()
-    Gui.Selection.addSelection(first)
+    second = make_construction_set(doc, "SmokeSet")  # becomes active
+    on, off = "GenSurf_SetActive.svg", "GenSurf_ConstructionSet.svg"
+
+    def icons():
+        return tuple(os.path.basename(o.ViewObject.Proxy.getIcon())
+                     for o in (first, second))
+
+    def right_click(obj, label):
+        menu = QtWidgets.QMenu()
+        obj.ViewObject.Proxy.setupContextMenu(obj.ViewObject, menu)
+        actions = {a.text(): a for a in menu.actions()}
+        if label not in actions:
+            raise RuntimeError(f"{obj.Label}: no {label!r} in {list(actions)}")
+        actions[label].trigger()
+        QtWidgets.QApplication.processEvents()
+
+    if icons() != (off, on):
+        raise RuntimeError(f"icons {icons()}")
+    right_click(first, "Set Active")
+    if get_active_set(doc) is not first or icons() != (on, off):
+        raise RuntimeError(f"Set Active failed, icons {icons()}")
+    right_click(first, "Set Inactive")
+    if get_active_set(doc) is not None or icons() != (off, off):
+        raise RuntimeError(f"Set Inactive failed, icons {icons()}")
+
     cmd = commands._COMMANDS["GenSurf_SetActive"]
-    if not cmd.IsActive():
-        raise RuntimeError("Set Active is disabled with a set selected")
-    cmd.Activated()
-    if get_active_set(doc) is not first or second.ActiveSet:
-        raise RuntimeError("Set Active did not switch the active set")
     Gui.Selection.clearSelection()
-    return "insert + Set Active"
+    Gui.Selection.addSelection(second)
+    if not cmd.IsActive():
+        raise RuntimeError("Set Active / Inactive is disabled with a set "
+                           "selected")
+    cmd.Activated()  # toolbar: inactive -> active
+    if get_active_set(doc) is not second:
+        raise RuntimeError("toolbar did not make the set active")
+    cmd.Activated()  # toolbar again: active -> inactive
+    if get_active_set(doc) is not None:
+        raise RuntimeError("toolbar did not make the set inactive")
+    Gui.Selection.clearSelection()
+    return "right-click Set Active / Inactive, toolbar toggle, icons"
 
 
 def tree_icons(doc):
     missing = [o.Name for o in doc.Objects
-               if getattr(o, "GSType", "") and o.TypeId ==
-               "Part::FeaturePython" and not o.ViewObject.Proxy.getIcon()]
+               if getattr(o, "GSType", "")
+               and not hasattr(o.ViewObject.Proxy, "getIcon")]
     if missing:
-        raise RuntimeError(f"no tree icon for {missing}")
-    return f"{len(doc.Objects)} objects"
+        raise RuntimeError(f"no GenSurf view provider for {missing}")
+    return f"{len(doc.Objects)} objects, sets included"
 
 
 def run():

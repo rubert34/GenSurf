@@ -13,7 +13,7 @@ import FreeCAD as App
 import FreeCADGui as Gui
 
 import gensurf
-from gensurf.containers import make_construction_set, is_set, set_active_set
+from gensurf.containers import make_construction_set, is_set
 
 ICON_DIR = os.path.join(gensurf.ADDON_DIR, "resources", "icons")
 
@@ -43,9 +43,10 @@ class _InsertConstructionSet:
 class _SetActive:
     def GetResources(self):
         return {
-            "MenuText": "Set Active",
-            "ToolTip": "Make the selected construction set active: new "
-                       "features are inserted into it",
+            "MenuText": "Set Active / Inactive",
+            "ToolTip": "Make the selected construction set active (new "
+                       "features go into it), or inactive if it already "
+                       "is (new features go to the top level)",
             "Pixmap": _icon("GenSurf_SetActive"),
         }
 
@@ -58,15 +59,10 @@ class _SetActive:
         return self._selected_set() is not None
 
     def Activated(self):
+        from gensurf.ui.view_provider import toggle_active_set
         target = self._selected_set()
-        if target is None:
-            return
-        doc = target.Document
-        doc.openTransaction("Set active construction set")
-        set_active_set(target)
-        doc.commitTransaction()
-        App.Console.PrintMessage(
-            f"[GenSurf] {target.Label} is now the active set\n")
+        if target is not None:
+            toggle_active_set(target)
 
 
 class _FeatureCommand:

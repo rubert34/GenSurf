@@ -6,6 +6,14 @@ surfaces. A set may be unordered (a plain collection) or ordered (its
 children form a linear history), and sets may be nested. New features
 are inserted into the *active* set.
 
+Where new features go: into the active set. With no active set (the
+user switched it off with Set Inactive, or deleted it) they go to the top
+level of the document. A set is created automatically only when a feature
+is inserted into a document that holds no other GenSurf feature and has no
+active set; once GenSurf features exist, new ones go into the active set,
+or to the top level if none is active, so deleting every set later does
+not bring one back.
+
 Implementation notes
 --------------------
 * A set is an ``App::DocumentObjectGroupPython`` with a
@@ -75,6 +83,9 @@ def make_construction_set(doc, name="ConstructionSet", ordered=False,
     """Create a construction set; optionally nest it and make it active."""
     obj = doc.addObject("App::DocumentObjectGroupPython", name)
     ConstructionSet(obj, ordered=ordered)
+    if App.GuiUp:
+        from gensurf.ui.view_provider import SetViewProvider
+        SetViewProvider(obj.ViewObject)
     if parent is not None:
         parent.addObject(obj)
     if activate:
@@ -93,6 +104,15 @@ def set_active_set(obj):
     return obj
 
 
+def set_inactive(obj):
+    """Switch the active set off: new features then go to the top level
+    of the document until a set is made active again."""
+    if not is_set(obj):
+        raise ValueError(f"{obj.Name} is not a construction set")
+    obj.ActiveSet = False
+    return obj
+
+
 def get_active_set(doc, create=False):
     """Return the active set, or None. With create=True, make one if absent."""
     for obj in _iter_sets(doc):
@@ -103,9 +123,26 @@ def get_active_set(doc, create=False):
     return None
 
 
+def has_gensurf_features(doc, exclude=None):
+    """True when the document already contains a GenSurf feature (sets do
+    not count) other than ``exclude``, the feature being inserted."""
+    return any(getattr(o, "GSType", "") not in ("", TYPE_ID)
+               for o in doc.Objects if o is not exclude)
+
+
 def insert_into_active_set(feature_obj, doc=None):
-    """Insert a document object into the active set (creating one if needed)."""
+    """Insert a new feature into the active set and return that set. With
+    no active set it stays at the top level (returns None), unless it is
+    the document's first GenSurf feature: then a set is created for it."""
     doc = doc or feature_obj.Document
-    active = get_active_set(doc, create=True)
-    active.addObject(feature_obj)
+    active = get_active_set(doc)
+    if active is None and not has_gensurf_features(doc, exclude=feature_obj):
+        active = make_construction_set(doc, activate=True)
+        App.Console.PrintMessage(
+            f"[GenSurf] created {active.Label}: GenSurf keeps features in "
+            "construction sets, and new features go into the active one. "
+            "Right-click a set to make it active or inactive; with no "
+            "active set, features go to the top level\n")
+    if active is not None:
+        active.addObject(feature_obj)
     return active

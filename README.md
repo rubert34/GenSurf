@@ -17,8 +17,10 @@ of their vendors.
 **40 parametric operators** on five task toolbars, with fly-out groups
 that bring related operators together:
 
-- **Sets** — Construction Set and Set Active: new curves, sketches and
-  surfaces land in the active set automatically.
+- **Sets** — Construction Set and Set Active / Inactive (also on the
+  right-click menu of every set): new curves, sketches and surfaces land
+  in the active set, marked with a check in the tree; with no active set
+  they go to the top level of the document.
 - **Curves** — Point, Line and Plane, plus four groups:
   - *Curve shapes:* Circle (five definitions, arc limits), Spline
     (per-point tangents and tensions), Helix (pitch / revolutions /

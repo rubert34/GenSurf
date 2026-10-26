@@ -4,6 +4,8 @@ from .construction_set import (  # noqa: F401
     is_set,
     get_active_set,
     set_active_set,
+    set_inactive,
+    has_gensurf_features,
     insert_into_active_set,
     TYPE_ID as SET_TYPE_ID,
 )
