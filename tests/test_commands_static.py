@@ -46,8 +46,8 @@ def test_every_operator_has_one_command_with_an_icon():
 def test_toolbars_are_task_groups_and_place_each_command_once():
     features, toolbars, groups = _layout()
     assert [title for title, _items in toolbars] == [
-        "Sets", "Curves", "Surfaces", "Edit", "Inspect",
-        "GenSurf development"]
+        "GenSurf Sets", "GenSurf Curves", "GenSurf Surfaces",
+        "GenSurf Edit", "GenSurf Inspect", "GenSurf development"]
     placed = []
     for _title, items in toolbars:
         for item in items:
@@ -56,6 +56,22 @@ def test_toolbars_are_task_groups_and_place_each_command_once():
         "GenSurf_ConstructionSet", "GenSurf_SetActive", "GenSurf_DevReload"]
     assert sorted(placed) == sorted(expected)
     assert all(len(cmds) >= 2 for cmds in groups.values())
+
+
+#: the toolbars every FreeCAD 1.1 workbench starts from
+FREECAD_TOOLBARS = {"File", "Edit", "Clipboard", "Workbench", "Macro",
+                    "View", "Individual Views", "Structure", "Help"}
+
+
+def test_toolbar_titles_cannot_merge_with_freecad_toolbars():
+    """FreeCAD adds a workbench toolbar's commands to its own toolbar of
+    the same title (GenSurf's "Edit" vanished with a hidden Undo / Redo
+    toolbar), so every title carries the GenSurf prefix."""
+    _features, toolbars, _groups = _layout()
+    titles = [title for title, _items in toolbars]
+    assert all(t.startswith("GenSurf ") for t in titles), titles
+    assert not FREECAD_TOOLBARS & set(titles)
+    assert len(set(titles)) == len(titles)
 
 
 def test_no_unused_icons():

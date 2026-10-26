@@ -101,15 +101,30 @@ def _apply_and_cancel(panel):
 
 
 def toolbars():
+    """Each GenSurf toolbar is visible and holds exactly its commands, and
+    no other toolbar holds a GenSurf command (FreeCAD merges toolbars of
+    the same title, so a title check alone passed while the commands sat
+    in FreeCAD's own, possibly hidden, toolbar)."""
     from gensurf.ui import commands
     mw = Gui.getMainWindow()
-    titles = {tb.windowTitle() for tb in mw.findChildren(QtWidgets.QToolBar)
-              if tb.isVisible()}
-    wanted = [title for title, _items in commands.TOOLBARS]
-    missing = [t for t in wanted if t not in titles]
-    if missing:
-        raise RuntimeError(f"toolbars missing: {missing}")
-    return ", ".join(wanted)
+    found = {}
+    for tb in mw.findChildren(QtWidgets.QToolBar):
+        names = [a.objectName() for a in tb.actions() if not a.isSeparator()]
+        found[tb.objectName()] = (tb.isVisible(), names)
+    problems = []
+    for title, items in commands.TOOLBARS:
+        visible, names = found.pop(title, (False, None))
+        if names != items:
+            problems.append(f"{title}: {names} != {items}")
+        elif not visible:
+            problems.append(f"{title}: hidden")
+    for title, (_visible, names) in found.items():
+        stray = [n for n in names if n.startswith("GenSurf_")]
+        if stray:
+            problems.append(f"GenSurf commands in {title!r}: {stray}")
+    if problems:
+        raise RuntimeError("; ".join(problems))
+    return ", ".join(title for title, _items in commands.TOOLBARS)
 
 
 def create_with_command(name):

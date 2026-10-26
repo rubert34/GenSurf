@@ -388,20 +388,27 @@ _GROUPS = {
          "GenSurf_Symmetry"]),
 }
 
+#: Every toolbar title starts with this. FreeCAD identifies toolbars by
+#: title: a workbench toolbar named like one of FreeCAD's own ("Edit" is
+#: the Undo / Redo toolbar) is merged into it and hidden with it, and
+#: shown / hidden state is shared with any other workbench's toolbar of
+#: the same name.
+TOOLBAR_PREFIX = "GenSurf "
+
 #: toolbar layout: fly-out groups + single buttons, by task
 TOOLBARS = (
-    ("Sets", ["GenSurf_ConstructionSet", "GenSurf_SetActive"]),
-    ("Curves", [
+    ("GenSurf Sets", ["GenSurf_ConstructionSet", "GenSurf_SetActive"]),
+    ("GenSurf Curves", [
         "GenSurf_Point", "GenSurf_Line", "GenSurf_Plane",
         "GenSurf_Group_CurveShapes", "GenSurf_Group_CurveFilletBridge",
         "GenSurf_Group_OffsetCurves", "GenSurf_Group_DeriveCurves"]),
-    ("Surfaces", [
+    ("GenSurf Surfaces", [
         "GenSurf_Group_BasicSurfaces",
         "GenSurf_Group_SurfacesFromCurves"]),
-    ("Edit", [
+    ("GenSurf Edit", [
         "GenSurf_Group_CutCombine", "GenSurf_Group_EdgesFillets",
         "GenSurf_Extend", "GenSurf_Group_Transform", "GenSurf_Heal"]),
-    ("Inspect", ["GenSurf_CurvatureComb"]),
+    ("GenSurf Inspect", ["GenSurf_CurvatureComb"]),
     ("GenSurf development", ["GenSurf_DevReload"]),
 )
 
@@ -414,8 +421,15 @@ def _expand(items):
     return out
 
 
+def menu_title(toolbar_title):
+    """Submenu title under the GenSurf menu: the toolbar's task name."""
+    task = toolbar_title[len(TOOLBAR_PREFIX):]
+    return task[:1].upper() + task[1:]
+
+
 #: menu layout: one submenu per toolbar, groups expanded
-MENUS = tuple((title, _expand(items)) for title, items in TOOLBARS)
+MENUS = tuple((menu_title(title), _expand(items))
+              for title, items in TOOLBARS)
 
 
 def register_all():

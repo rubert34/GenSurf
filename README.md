@@ -14,8 +14,10 @@ of their vendors.
 
 ## What's inside
 
-**40 parametric operators** on five task toolbars, with fly-out groups
-that bring related operators together:
+**40 parametric operators** on five task toolbars (GenSurf Sets,
+GenSurf Curves, GenSurf Surfaces, GenSurf Edit and GenSurf Inspect under
+View → Toolbars; the GenSurf menu has the same groups), with fly-out
+groups that bring related operators together:
 
 - **Sets** — Construction Set and Set Active / Inactive (also on the
   right-click menu of every set): new curves, sketches and surfaces land

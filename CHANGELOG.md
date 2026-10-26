@@ -32,7 +32,7 @@ option values and expressions), and the objects recompute identically.
 | Healing | Heal |
 | Close Surface | Make Solid |
 | Continuity Position / Tangency (Tangent) / Curvature | G0 Position / G1 Tangent / G2 Curvature |
-| Toolbars Structure / Wireframe / Surfaces / Operations / Analysis | **Sets · Curves · Surfaces · Edit · Inspect**, with fly-outs by task: Curve shapes, Curve fillet & bridge, Offset curves, Derive curves, Basic surfaces, Surfaces from curves, Cut & combine, Edges & fillets, Transform |
+| Toolbars Structure / Wireframe / Surfaces / Operations / Analysis | **Sets · Curves · Surfaces · Edit · Inspect** (toolbars titled GenSurf Sets … GenSurf Inspect; submenus of the GenSurf menu), with fly-outs by task: Curve shapes, Curve fillet & bridge, Offset curves, Derive curves, Basic surfaces, Surfaces from curves, Cut & combine, Edges & fillets, Transform |
 
 - Command names are now `GenSurf_<Operator>` (custom shortcuts or
   toolbars that used the old command names need to be re-assigned).
@@ -79,6 +79,12 @@ option values and expressions), and the objects recompute identically.
   mode matches the support's curvature across the edge (0.18 %).
 
 ### Fixed
+- The Edit toolbar (Cut & combine, Edges & fillets, Extend, Transform,
+  Heal) did not appear when FreeCAD's own Edit toolbar (Undo / Redo) was
+  hidden: FreeCAD merges toolbars of the same title, so GenSurf's
+  commands sat at the end of FreeCAD's toolbar. Every GenSurf toolbar
+  title now starts with "GenSurf"; the GUI smoke test checks each
+  toolbar's contents.
 - GenSurf created a new construction set whenever there was no active set,
   for example after the user deleted every set. Now a set is created only
   for the first GenSurf feature of a document (no other GenSurf feature
