@@ -1,28 +1,47 @@
 """Loft table panel.
 
 Two tables:
-  * Sections: Section | Support | Continuity (support and continuity act
-    on the first and last rows only: tangency applies to the end
-    sections);
+  * Sections: Section | Support | Continuity | Seam | Direction (support
+    and continuity act on the first and last rows only: tangency applies
+    to the end sections);
   * Rails:    Rail | Support | Continuity (every row).
 
 Workflow: press "Add" under a table, then click curves in the 3D view —
 each pick appends a row. Select a row and press "Set support", then pick
-a face. Continuity combos live inside the table. Everything recomputes
-live.
+a face. Continuity combos live inside the table. For a closed section,
+"Set seam" takes a picked vertex or point as the seam point and "Auto
+seam" matches it to the previous section again; "Reverse" flips the
+selected section's direction. Everything recomputes live; warnings
+(sections turning or running in opposite directions) show below.
 """
 
 import FreeCAD as App
 import FreeCADGui as Gui
+import Part
 from PySide import QtWidgets, QtCore
 
 from gensurf.features.base import CONTINUITY
 from gensurf.ui.task_panels import (build_params_box, error_text,
-                                    is_apply, standard_buttons)
+                                    is_apply, issues_text,
+                                    standard_buttons)
 
 def _pick_label(linked, subs):
     sub = subs[0] if subs else ""
     return f"{linked.Label}.{sub}" if sub else linked.Label
+
+
+_PROMPTS = {
+    "section": "Click a section curve — then its support FACE "
+               "(or the next curve to skip the support).",
+    "rail": "Click a rail curve — then its support FACE (or "
+             "the next curve to skip the support).",
+    "sup_section": "Pick the support FACE for this section — or "
+                   "click the next section curve to skip.",
+    "sup_rail": "Pick the support FACE for this rail — or "
+                 "click the next rail curve to skip.",
+    "seam": "Pick the seam point of the selected closed section: "
+            "one of its vertices, or a point.",
+}
 
 
 class LoftTaskPanel:
@@ -31,14 +50,16 @@ class LoftTaskPanel:
         self.created = created
         if not created:  # dialog session = one transaction (see task_panels)
             obj.Document.openTransaction(f"Edit {obj.Label}")
-        self.mode = None  # "section" | "rail" | "sup_section" | "sup_rail"
+        # "section" | "rail" | "sup_section" | "sup_rail" | "seam"
+        self.mode = None
 
         self.form = QtWidgets.QWidget()
         self.form.setWindowTitle(obj.Label or obj.Name)
         layout = QtWidgets.QVBoxLayout(self.form)
 
-        self.sec_table = self._make_table("Sections", layout,
-                                          self._sec_buttons)
+        self.sec_table = self._make_table(
+            "Sections", layout, self._sec_buttons,
+            extra=("Seam", "Direction"), more=self._seam_buttons)
         self.gui_table = self._make_table("Rails", layout,
                                           self._gui_buttons)
 
@@ -60,12 +81,13 @@ class LoftTaskPanel:
 
     # -- UI scaffolding ----------------------------------------------------
 
-    def _make_table(self, title, layout, buttons_fn):
+    def _make_table(self, title, layout, buttons_fn, extra=(),
+                    more=None):
         box = QtWidgets.QGroupBox(title)
         v = QtWidgets.QVBoxLayout(box)
-        table = QtWidgets.QTableWidget(0, 3)
+        table = QtWidgets.QTableWidget(0, 3 + len(extra))
         table.setHorizontalHeaderLabels(
-            [title[:-1], "Support", "Continuity"])
+            [title[:-1], "Support", "Continuity", *extra])
         table.horizontalHeader().setStyleSheet(
             "QHeaderView::section { background: palette(button); "
             "color: palette(button-text); padding: 2px; }")
@@ -82,12 +104,15 @@ class LoftTaskPanel:
         table.setMinimumHeight(96)
         table.setMaximumHeight(150)
         v.addWidget(table)
-        row = QtWidgets.QHBoxLayout()
-        for label, cb in buttons_fn():
-            b = QtWidgets.QPushButton(label)
-            b.clicked.connect(cb)
-            row.addWidget(b)
-        v.addLayout(row)
+        for fn in (buttons_fn, more):
+            if fn is None:
+                continue
+            row = QtWidgets.QHBoxLayout()
+            for label, cb in fn():
+                b = QtWidgets.QPushButton(label)
+                b.clicked.connect(cb)
+                row.addWidget(b)
+            v.addLayout(row)
         layout.addWidget(box)
         return table
 
@@ -96,6 +121,11 @@ class LoftTaskPanel:
                 ("Remove", self._remove_section),
                 ("Set support", lambda: self._set_mode("sup_section")))
 
+    def _seam_buttons(self):
+        return (("Set seam", lambda: self._set_mode("seam")),
+                ("Auto seam", self._auto_seam),
+                ("Reverse", self._reverse_section))
+
     def _gui_buttons(self):
         return (("Add", lambda: self._set_mode("rail")),
                 ("Remove", self._remove_rail),
@@ -103,17 +133,12 @@ class LoftTaskPanel:
 
     def _set_mode(self, mode):
         self.mode = mode
-        prompts = {
-            "section": "Click a section curve — then its support FACE "
-                       "(or the next curve to skip the support).",
-            "rail": "Click a rail curve — then its support FACE (or "
-                     "the next curve to skip the support).",
-            "sup_section": "Pick the support FACE for this section — or "
-                           "click the next section curve to skip.",
-            "sup_rail": "Pick the support FACE for this rail — or "
-                         "click the next rail curve to skip.",
-        }
-        self.hint.setText(prompts.get(mode, ""))
+        self._show_hint()
+
+    def _show_hint(self):
+        """The current prompt, then the feature's warnings."""
+        parts = (_PROMPTS.get(self.mode, ""), issues_text(self.obj))
+        self.hint.setText("\n".join(p for p in parts if p))
 
     # -- model access ------------------------------------------------------
 
@@ -132,6 +157,8 @@ class LoftTaskPanel:
         sec_conts = list(obj.SectionContinuities or [])
         sec_sup_map = self._support_map("SectionSupports",
                                         "SectionSupportRows")
+        seam_map = self._support_map("SeamPoints", "SeamPointRows")
+        directions = list(obj.SectionDirections or [])
         self.sec_table.setRowCount(len(secs))
         for r, (linked, sub) in enumerate(secs):
             self.sec_table.setItem(r, 0, QtWidgets.QTableWidgetItem(
@@ -149,6 +176,16 @@ class LoftTaskPanel:
                 lambda v, row=r: self._set_row_cont(
                     "SectionContinuities", self.sec_table, row, v))
             self.sec_table.setCellWidget(r, 2, combo)
+            seam = ""
+            if r in seam_map:
+                s_linked, s_sub = seam_map[r]
+                seam = _pick_label(s_linked, [s_sub] if s_sub else [])
+            elif self._is_closed_row(secs[r]):
+                seam = "auto"
+            self.sec_table.setItem(r, 3, QtWidgets.QTableWidgetItem(seam))
+            reverse = r < len(directions) and directions[r]
+            self.sec_table.setItem(r, 4, QtWidgets.QTableWidgetItem(
+                "reversed" if reverse else ""))
 
         gds = self._entries(obj.Rails)
         conts = list(obj.RailContinuities or [])
@@ -193,6 +230,48 @@ class LoftTaskPanel:
             self.obj.Document.recompute()
         except Exception as err:
             self.hint.setText(error_text(err))
+            return
+        self._show_hint()
+
+    @staticmethod
+    def _is_closed_row(entry):
+        linked, sub = entry
+        try:
+            shape = linked.Shape.getElement(sub) if sub else linked.Shape
+            return bool(shape.Edges) and \
+                Part.Wire(Part.__sortEdges__(shape.Edges)).isClosed()
+        except Exception:  # noqa: BLE001 — a broken pick shows no seam
+            return False
+
+    def _selected_section(self):
+        r = self.sec_table.currentRow()
+        if r < 0 or r >= self.sec_table.rowCount():
+            self.hint.setText("select a section row first")
+            return None
+        return r
+
+    def _auto_seam(self):
+        r = self._selected_section()
+        if r is None:
+            return
+        seam_map = self._support_map("SeamPoints", "SeamPointRows")
+        seam_map.pop(r, None)
+        self._write_supports("SeamPoints", "SeamPointRows", seam_map)
+        self._recompute()
+        self.refresh()
+        self.sec_table.selectRow(r)
+
+    def _reverse_section(self):
+        r = self._selected_section()
+        if r is None:
+            return
+        n = self.sec_table.rowCount()
+        directions = (list(self.obj.SectionDirections or []) + [0] * n)[:n]
+        directions[r] = 0 if directions[r] else 1
+        self.obj.SectionDirections = directions
+        self._recompute()
+        self.refresh()
+        self.sec_table.selectRow(r)
 
     def _set_row_cont(self, prop, table, row, value):
         conts = list(getattr(self.obj, prop) or [])
@@ -225,6 +304,15 @@ class LoftTaskPanel:
             if r < len(conts):
                 del conts[r]
             self.obj.SectionContinuities = conts
+            seam_map = {row if row < r else row - 1: pick
+                        for row, pick in self._support_map(
+                            "SeamPoints", "SeamPointRows").items()
+                        if row != r}
+            self._write_supports("SeamPoints", "SeamPointRows", seam_map)
+            directions = list(self.obj.SectionDirections or [])
+            if r < len(directions):
+                del directions[r]
+            self.obj.SectionDirections = directions
             self._recompute()
             self.refresh()
 
@@ -281,6 +369,22 @@ class LoftTaskPanel:
     def _handle_pick(self, picked, sub):
         # Alternating flow: curve -> its support face -> next curve...
         # Clicking a curve while a support is expected skips the support.
+        if self.mode == "seam":
+            r = self._selected_section()
+            if r is None:
+                return
+            if len(self._shape_of(picked, sub).Vertexes) != 1:
+                self.hint.setText("pick a VERTEX or a point")
+                return
+            seam_map = self._support_map("SeamPoints", "SeamPointRows")
+            seam_map[r] = (picked, sub)
+            self._write_supports("SeamPoints", "SeamPointRows", seam_map)
+            self.mode = None
+            self.hint.setText("")
+            self._recompute()
+            self.refresh()
+            self.sec_table.selectRow(r)
+            return
         if self.mode in ("section", "rail"):
             prop = "Sections" if self.mode == "section" else "Rails"
             if not self._is_curveish(picked, sub):

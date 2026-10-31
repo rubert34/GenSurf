@@ -44,6 +44,18 @@ option values and expressions), and the objects recompute identically.
   mentioned was never linked).
 
 ### Added
+- Loft: a **seam point** for every closed section and a **direction**
+  for every section, in every build path. Seams are picked (a vertex or
+  a point: "Set seam") or matched to the previous section ("Auto
+  seam"; any point of a smooth section, a vertex of one with corners);
+  "Reverse" flips one section. The Loft warns when consecutive sections
+  run in opposite directions or turn by more than `TwistLimit`
+  (default 45°), and its panel shows the warnings. Without rails or end
+  supports the surface is now skinned exactly through the sections as
+  prepared, one face per edge column; closed sections with end supports
+  or rails no longer twist when their seams are far apart. Loft
+  algorithm version 2: existing Lofts keep their geometry, and warn if
+  given seam points or reversed sections before being upgraded.
 - Set Active / Set Inactive on the right-click menu of every construction
   set (and as a toggle on the Sets toolbar). The active set's tree icon
   carries a check mark. With no active set, new features go to the top

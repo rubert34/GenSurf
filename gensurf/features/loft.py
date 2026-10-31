@@ -17,13 +17,23 @@ Rails must touch every section (within tolerance). Coupling chooses
 how section points correspond: ArcLength (equal length fractions) or
 Ratio (equal parameter fractions). The first and last sections, and each
 rail, may carry a support surface with G1/G2 continuity.
+
+Algorithm version 2 (new objects) prepares the sections first, in every
+build path (see loft_sections): each closed section gets a seam point
+(picked, or matched to the previous section) and every section a
+direction (matched, or reversed per row), with warnings when consecutive
+sections run in opposite directions or turn more than TwistLimit. Without
+rails or end supports the surface is skinned exactly through the
+prepared sections. Version 1 (objects made before) keeps the plain
+ThruSections loft, which places seams itself.
 """
 
 import FreeCAD as App
 import Part
 
-from .base import (GSFeature, GSFeatureError, resolve_linksublist,
-                   make_feature, curve_wires)
+from . import loft_sections
+from .base import (GSFeature, GSFeatureError, GenSurfError, WARNING,
+                   resolve_linksublist, make_feature, curve_wires)
 from .registry import register
 
 _TOUCH_TOL = 1e-4
@@ -31,6 +41,7 @@ _TOUCH_TOL = 1e-4
 
 class Loft(GSFeature):
     TYPE_ID = "GenSurf::Loft"
+    ALGO_VERSION = 2  # 2: seam points, directions, exact skin
     CUSTOM_PANEL = "loft"
     REQUIRED_LINKS = ("Sections",)
     INPUT_SLOTS = (
@@ -62,12 +73,25 @@ class Loft(GSFeature):
          "Per-section continuity: 0 = G0 Position, 1 = G1 Tangent, "
          "2 = G2 Curvature "
          "(only the first and last sections take effect)", None),
+        ("App::PropertyLinkSubList", "SeamPoints", "Loft",
+         "Seam points of closed sections, vertices or points (see "
+         "SeamPointRows); other closed sections are matched "
+         "automatically", None),
+        ("App::PropertyIntegerList", "SeamPointRows", "Loft",
+         "Section index for each SeamPoints entry", None),
+        ("App::PropertyIntegerList", "SectionDirections", "Loft",
+         "Per-section direction: 0 = as aligned automatically (or as "
+         "drawn when AutoOrient is off), 1 = reversed", None),
+        ("App::PropertyAngle", "TwistLimit", "Loft",
+         "Warn when consecutive sections turn by more than this angle "
+         "around the loft (0 = no warning)", 45.0),
         ("App::PropertyEnumeration", "Coupling", "Loft",
          "Point correspondence between sections", None),
         ("App::PropertyBool", "Ruled", "Loft",
          "Straight (ruled) transitions between sections", False),
         ("App::PropertyBool", "AutoOrient", "Loft",
-         "Align section directions automatically", True),
+         "Match each section's seam point and direction to the previous "
+         "section automatically", True),
         ("App::PropertyInteger", "Samples", "Loft",
          "Section sampling density (with rails or end supports)", 24),
         ("App::PropertyInteger", "Stations", "Loft",
@@ -531,6 +555,17 @@ class Loft(GSFeature):
                 "support continuity combined with rails is not "
                 "supported yet — use one or the other")
 
+        if self.algo_version(obj) >= 2:
+            return self._build_prepared(obj, wires, rail_wires, constrained,
+                                        sup_first, c_first, sup_last, c_last)
+        if obj.SeamPoints or any(obj.SectionDirections or []):
+            self.report(obj, GenSurfError(
+                "loft-upgrade-for-seams",
+                "seam points and reversed sections need the current Loft "
+                "algorithm; right-click the Loft and choose Upgrade to "
+                "current algorithm", ["SeamPoints", "SectionDirections"],
+                severity=WARNING))
+
         if constrained:
             n = min(max(int(obj.Samples), 8), 200)
             sampled = [self._sample(w, n, obj.Coupling) for w in wires]
@@ -571,6 +606,48 @@ class Loft(GSFeature):
             return self._guided_loft(obj, sampled, wires, rail_wires)
         except Part.OCCError as err:
             raise GSFeatureError(f"loft along rails failed: {err}")
+
+
+    # -- algorithm version 2 -----------------------------------------------
+
+    @staticmethod
+    def _seam_points(obj):
+        """{section row: point} from SeamPoints / SeamPointRows."""
+        seams = {}
+        flat = Loft._entries_flat(obj.SeamPoints)
+        for (linked, sub), row in zip(flat, obj.SeamPointRows or []):
+            shape = linked.Shape.getElement(sub) if sub else linked.Shape
+            if len(shape.Vertexes) != 1:
+                raise GenSurfError(
+                    "seam-not-a-point",
+                    f"the seam point of section {row + 1} must be a "
+                    "vertex or a point", ["SeamPoints"])
+            seams[row] = shape.Vertexes[0].Point
+        return seams
+
+    def _build_prepared(self, obj, wires, rail_wires, constrained,
+                        sup_first, c_first, sup_last, c_last):
+        sections = loft_sections.prepare(
+            wires, self._seam_points(obj),
+            list(obj.SectionDirections or []), obj.AutoOrient)
+        limit = float(getattr(obj.TwistLimit, "Value", obj.TwistLimit))
+        for issue in loft_sections.check(sections, limit):
+            self.report(obj, issue)
+
+        n = min(max(int(obj.Samples), 8), 200)
+        by_parameter = obj.Coupling == "Ratio"
+        try:
+            if constrained:
+                sampled = [s.samples(n, by_parameter) for s in sections]
+                return self._constrained_loft(
+                    obj, sampled, sup_first, c_first, sup_last, c_last)
+            if not rail_wires:
+                return loft_sections.skin(sections, obj.Ruled)
+            sampled = [s.samples(n, by_parameter) for s in sections]
+            return self._guided_loft(
+                obj, sampled, [s.wire() for s in sections], rail_wires)
+        except Part.OCCError as err:
+            raise GSFeatureError(f"loft failed: {err}")
 
 
 def make_loft(doc, name="Loft"):

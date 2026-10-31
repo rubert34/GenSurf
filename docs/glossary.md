@@ -24,6 +24,9 @@ so.
 |---|---|
 | **Support** | The surface (or plane) that a curve lies on, or against which a continuity condition is measured. |
 | **Section** | A curve that a surface must pass through, across its main direction (Loft). |
+| **Seam point** | Where a closed section starts. Consecutive sections are joined seam to seam, so seams set how the surface turns around the loft. Picked (a vertex or a point) or matched automatically to the previous section. |
+| **Direction** (of a section) | The way a section runs from its seam. Consecutive sections run the same way; a reversed section makes the surface fold through itself. |
+| **Twist** | How far the surface turns around the loft between two consecutive sections, measured from seam to seam (Loft warns above its *TwistLimit*). |
 | **Profile** | The curve that is moved along a path to make a sweep. |
 | **Rail** | A curve that a surface must follow along its main direction (Loft, sweeps). |
 | **Spine** | A curve that sets the orientation of the moving profile planes, independent of the rails. The Spine operator builds one that crosses given planes at right angles. |

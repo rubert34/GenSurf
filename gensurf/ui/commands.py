@@ -162,6 +162,7 @@ class _ReloadWorkbench:
         "gensurf.features.rotate",
         "gensurf.features.scale",
         "gensurf.features.extend",
+        "gensurf.features.loft_sections",
         "gensurf.features.loft",
         "gensurf.features.fill",
         "gensurf.features.bridge_curve",

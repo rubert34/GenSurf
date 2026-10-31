@@ -43,7 +43,8 @@ groups that bring related operators together:
     Arc (through 3 rails, 2 rails + radius, around a center rail) and
     Sweep Conic (exact rational conics tangent to 2 surfaces, or through
     5 rails); Loft (sections and rails, with G1 / G2 supports at the end
-    sections and along the rails); Fill (true per-edge G0 / G1 / G2,
+    sections and along the rails; seam point and direction per
+    section, matched automatically, with a twist warning); Fill (true per-edge G0 / G1 / G2,
     passing points); Blend (G0 / G1 / G2 per side, with tension).
 - **Edit**
   - *Cut & combine:* Split, Trim, Join (connectivity, manifold and

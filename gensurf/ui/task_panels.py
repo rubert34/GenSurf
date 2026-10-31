@@ -31,6 +31,16 @@ def error_text(err):
     return describe() if describe else str(err)
 
 
+def issues_text(obj):
+    """Errors and warnings of the feature's last recompute, one per
+    line ("" when there are none, information notes left out)."""
+    from gensurf.features.base import ERROR, WARNING
+    proxy = getattr(obj, "Proxy", None)
+    issues = proxy.issues() if hasattr(proxy, "issues") else []
+    return "\n".join(i.describe() for i in issues
+                     if i.severity in (ERROR, WARNING))
+
+
 def _camel_label(name):
     """LengthFwd -> 'Length Fwd'."""
     out = []

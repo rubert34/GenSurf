@@ -151,6 +151,61 @@ def edit_existing(obj):
     return type(panel).__name__
 
 
+def loft_seams_and_directions():
+    """Loft panel: Reverse, Set seam (a picked vertex), Auto seam, the
+    Seam / Direction columns and the twist warning in the hint line;
+    Cancel restores the Loft."""
+    import Part
+    from gensurf.features import make_loft
+    from gensurf.ui.view_provider import open_feature_dialog
+    doc = App.ActiveDocument
+    squares = []
+    for z in (0, 10):
+        sq = doc.addObject("Part::Feature", f"SmokeSquare{z}")
+        sq.Shape = Part.makePolygon([
+            App.Vector(-10, -10, z), App.Vector(10, -10, z),
+            App.Vector(10, 10, z), App.Vector(-10, 10, z),
+            App.Vector(-10, -10, z)])
+        squares.append(sq)
+    loft = make_loft(doc)
+    loft.Sections = [(sq, "") for sq in squares]
+    doc.recompute()
+    open_feature_dialog(loft, created=False)
+    QtWidgets.QApplication.processEvents()
+    panel = _active_panel()
+    table = panel.sec_table
+    if table.columnCount() != 5 or table.item(1, 3).text() != "auto":
+        raise RuntimeError("Seam / Direction columns missing")
+
+    table.selectRow(1)
+    panel._reverse_section()
+    if list(loft.SectionDirections) != [0, 1] or \
+            table.item(1, 4).text() != "reversed":
+        raise RuntimeError(f"Reverse: {list(loft.SectionDirections)}")
+    panel._reverse_section()
+
+    table.selectRow(1)
+    panel._set_mode("seam")
+    panel._handle_pick(squares[1], "Vertex2")
+    if list(loft.SeamPointRows) != [1] or \
+            "Vertex2" not in table.item(1, 3).text():
+        raise RuntimeError("Set seam did not record the vertex")
+    if "turns by 90" not in panel.hint.text():
+        raise RuntimeError(f"no twist warning: {panel.hint.text()!r}")
+
+    table.selectRow(1)
+    panel._auto_seam()
+    if loft.SeamPoints or table.item(1, 3).text() != "auto":
+        raise RuntimeError("Auto seam did not clear the seam")
+
+    panel.reject()
+    QtWidgets.QApplication.processEvents()
+    if Gui.Control.activeDialog() or loft.SeamPoints or \
+            any(loft.SectionDirections):
+        raise RuntimeError("Cancel did not restore the Loft")
+    return "reverse, set seam, auto seam, twist warning, cancel"
+
+
 def construction_sets():
     from gensurf.containers import get_active_set, make_construction_set
     from gensurf.ui import commands
@@ -217,6 +272,7 @@ def run():
 
         App.newDocument("Smoke")
         check("construction sets", construction_sets)
+        check("loft seams and directions", loft_seams_and_directions)
         for name, _type_id, text, _tip in commands._FEATURES:
             check(f"command {text}",
                   lambda n=name: create_with_command(n))
